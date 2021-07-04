@@ -20,3 +20,7 @@ I am using git in a daily basics but know nothing about the internal datastructu
 13. show-ref 
 14. tag 
 
+
+## Resources
+1. [Git magic](http://www-cs-students.stanford.edu/~blynn/gitmagic/ch01.html)
+2. [Write yourself a Git!](https://wyag.thb.lt/)

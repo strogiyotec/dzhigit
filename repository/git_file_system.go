@@ -13,9 +13,23 @@ const (
 	Description = "Description"
 )
 
+func DefaultPath() string {
+	path, _ := os.Getwd()
+	return path + "/.dzhigit/"
+}
+
+//Check if repository exists
+func Exists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	} else {
+		return true
+	}
+}
+
 //create git repository
 func Init(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if !Exists(path) {
 		return initRepo(path)
 	} else {
 		return errors.New("Dzhigit repository already exists")

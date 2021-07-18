@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/strogiyotec/dzhigit/cli"
@@ -13,11 +12,17 @@ func main() {
 	ctx := kong.Parse(&cli.Git)
 	switch ctx.Command() {
 	case "add <files>":
-		fmt.Println(cli.Git.Add.Files)
+		path := repository.DefaultPath()
+		command, err := cli.NewGitAdd(cli.Git.Add.Files, path)
+		if err != nil {
+			fmt.Println(err.Error())
+		} else {
+			command.Add()
+		}
 	case "init":
 		{
-			path, _ := os.Getwd()
-			err := repository.Init(path + "/.dzhigit/")
+			path := repository.DefaultPath()
+			err := repository.Init(path)
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {

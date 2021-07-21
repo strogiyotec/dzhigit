@@ -17,24 +17,6 @@ const (
 	TREE               = "tree"
 )
 
-//convert given string to git object type
-func asGitObjectType(str string) (GitObjectType, error) {
-	switch str {
-	case "blob":
-		return BLOB, nil
-	case "tree":
-		return TREE, nil
-	default:
-		return "",
-			errors.New(
-				fmt.Sprintf(
-					"%s is not a valid git object type",
-					str,
-				),
-			)
-	}
-}
-
 type GitFileFormatter interface {
 	Serialize(data []byte, objType string) (*SerializedGitObject, error)
 	Deserialize(data []byte) (*DeserializedGitObject, error)
@@ -48,12 +30,12 @@ type DeserializedGitObject struct {
 	content []byte
 }
 
-func NewDeserializedGitObject(objType string, cotent []byte) {
-}
-
 type SerializedGitObject struct {
 	hash    []byte
 	content []byte
+}
+
+func NewDeserializedGitObject(objType string, cotent []byte) {
 }
 
 func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitObject, error) {
@@ -128,4 +110,22 @@ func header(data []byte, objType GitObjectType) []byte {
 			len(data),
 		),
 	)
+}
+
+//convert given string to git object type
+func asGitObjectType(str string) (GitObjectType, error) {
+	switch str {
+	case "blob":
+		return BLOB, nil
+	case "tree":
+		return TREE, nil
+	default:
+		return "",
+			errors.New(
+				fmt.Sprintf(
+					"%s is not a valid git object type",
+					str,
+				),
+			)
+	}
 }

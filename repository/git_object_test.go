@@ -28,3 +28,10 @@ func Test_header(t *testing.T) {
 		)
 	}
 }
+
+func Test_asGitObjectType(t *testing.T) {
+	_, err := asGitObjectType("bla-bla")
+	if err == nil {
+		t.Fatal("Should not parse invalid git object type")
+	}
+}

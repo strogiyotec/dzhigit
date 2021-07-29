@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -20,6 +22,7 @@ const (
 type GitFileFormatter interface {
 	Serialize(data []byte, objType string) (*SerializedGitObject, error)
 	Deserialize(data []byte) (*DeserializedGitObject, error)
+	Save(serialized *SerializedGitObject, path string) error
 }
 
 type DefaultGitFileFormatter struct {
@@ -31,16 +34,13 @@ type DeserializedGitObject struct {
 }
 
 type SerializedGitObject struct {
-	hash    []byte
+	Hash    string
 	content []byte
-}
-
-func NewDeserializedGitObject(objType string, cotent []byte) {
 }
 
 func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitObject, error) {
 	spaceIndex := strings.Index(string(data), " ")
-	objType, err := asGitObjectType(string(data[0:spaceIndex]))
+	objType, err := AsGitObjectType(string(data[0:spaceIndex]))
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +75,37 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 		return nil, err
 	}
 	return &SerializedGitObject{
-		hash:    hash,
+		Hash:    fmt.Sprintf("%x", hash),
 		content: zipped,
 	}, nil
 
+}
+func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path string) error {
+	hashDir, fileName := blobDirWithFileName(serialized.Hash)
+	fullPath := path + hashDir
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		os.Mkdir(fullPath, 0755)
+		file, err := os.Create(fullPath + "/" + fileName)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		writer := bufio.NewWriter(file)
+		_, err = writer.Write(serialized.content)
+		if err != nil {
+			return err
+		}
+		return writer.Flush()
+	} else {
+		return errors.New("Hash already exists")
+	}
+}
+
+//Git uses first two hash characters as a directory
+//in order to decrease amount of files per directory
+//some OS have limitations on amount of files per dir
+func blobDirWithFileName(hash string) (string, string) {
+	return hash[0:2], hash[2:]
 }
 
 func zipped(data []byte) ([]byte, error) {
@@ -113,7 +140,7 @@ func header(data []byte, objType GitObjectType) []byte {
 }
 
 //convert given string to git object type
-func asGitObjectType(str string) (GitObjectType, error) {
+func AsGitObjectType(str string) (GitObjectType, error) {
 	switch str {
 	case "blob":
 		return BLOB, nil

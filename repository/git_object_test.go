@@ -13,7 +13,7 @@ func Test_SerializeAndDeserialize(t *testing.T) {
 		t.Fatal(err.Error())
 		return
 	}
-	if len(serialized.hash) != sha1.Size {
+	if len(serialized.Hash) != sha1.Size {
 		fmt.Println("Invalid hash length, has to be 40 ")
 	}
 	//TODO: test content of the serialized object
@@ -30,7 +30,7 @@ func Test_header(t *testing.T) {
 }
 
 func Test_asGitObjectType(t *testing.T) {
-	_, err := asGitObjectType("bla-bla")
+	_, err := AsGitObjectType("bla-bla")
 	if err == nil {
 		t.Fatal("Should not parse invalid git object type")
 	}

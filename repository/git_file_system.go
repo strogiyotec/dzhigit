@@ -15,7 +15,11 @@ const (
 
 func DefaultPath() string {
 	path, _ := os.Getwd()
-	return path + "/.dzhigit/"
+	return path + "/.dzhigit"
+}
+
+func ObjPath(path string) string {
+	return path + Objects
 }
 
 //Check if repository exists
@@ -27,7 +31,7 @@ func Exists(path string) bool {
 	}
 }
 
-//create git repository
+//create git repository, returns an error if already exists
 func Init(path string) error {
 	if !Exists(path) {
 		return initRepo(path)

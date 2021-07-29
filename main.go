@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/alecthomas/kong"
 	"github.com/strogiyotec/dzhigit/cli"
@@ -28,6 +29,41 @@ func main() {
 			} else {
 				fmt.Println("Initialize new dzhigit repository")
 			}
+		}
+	case "hash-object <file>":
+		{
+			gitFile := repository.DefaultGitFileFormatter{}
+			content, err := ioutil.ReadFile(cli.Git.HashObject.File)
+			if err != nil {
+				fmt.Printf(
+					"Error during reading file for hashing %s ",
+					err.Error(),
+				)
+				return
+			}
+			objType, _ := repository.AsGitObjectType(cli.Git.HashObject.Type)
+			serialized, err := gitFile.Serialize(content, objType)
+			if err != nil {
+				fmt.Printf(
+					"Error during serializing file for hashing %s ",
+					err.Error(),
+				)
+				return
+			}
+			if cli.Git.HashObject.Write {
+				path := repository.DefaultPath()
+				if !repository.Exists(path) {
+					fmt.Println("Dzhigit repository doesn't exist")
+					return
+				}
+				objPath := repository.ObjPath(path)
+				err = gitFile.Save(serialized, objPath)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+			}
+			fmt.Println(serialized.Hash)
 		}
 	default:
 		fmt.Println("Default")

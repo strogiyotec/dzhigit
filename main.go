@@ -65,6 +65,22 @@ func main() {
 			}
 			fmt.Println(serialized.Hash)
 		}
+	case "cat-file <hash>":
+		{
+			path := repository.DefaultPath()
+			if !repository.Exists(path) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			gitFile := &repository.DefaultGitFileFormatter{}
+			objPath := repository.ObjPath(path)
+			deser, err := cli.GitCat(cli.Git.CatFile.Hash, gitFile, objPath)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Println(deser.Content)
+		}
 	default:
 		fmt.Println("Default")
 	}

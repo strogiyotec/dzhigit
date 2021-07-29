@@ -20,7 +20,7 @@ const (
 )
 
 type GitFileFormatter interface {
-	Serialize(data []byte, objType string) (*SerializedGitObject, error)
+	Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error)
 	Deserialize(data []byte) (*DeserializedGitObject, error)
 	Save(serialized *SerializedGitObject, path string) error
 }
@@ -30,7 +30,7 @@ type DefaultGitFileFormatter struct {
 
 type DeserializedGitObject struct {
 	objType GitObjectType
-	content []byte
+	Content []byte
 }
 
 type SerializedGitObject struct {
@@ -59,7 +59,7 @@ func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitOb
 	}
 	return &DeserializedGitObject{
 		objType: objType,
-		content: data[nullIndex+1:],
+		Content: data[nullIndex+1:],
 	}, nil
 }
 
@@ -81,7 +81,7 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 
 }
 func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path string) error {
-	hashDir, fileName := blobDirWithFileName(serialized.Hash)
+	hashDir, fileName := BlobDirWithFileName(serialized.Hash)
 	fullPath := path + hashDir
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		os.Mkdir(fullPath, 0755)
@@ -104,7 +104,7 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path s
 //Git uses first two hash characters as a directory
 //in order to decrease amount of files per directory
 //some OS have limitations on amount of files per dir
-func blobDirWithFileName(hash string) (string, string) {
+func BlobDirWithFileName(hash string) (string, string) {
 	return hash[0:2], hash[2:]
 }
 

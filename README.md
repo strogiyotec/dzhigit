@@ -9,7 +9,7 @@ I am using git in a daily basics but know nothing about the internal datastructu
 2. cat-file 
 3. checkout 
 4. commit 
-5. hash-object 
+5. [X] hash-object 
 6. init 
 7. log 
 8. ls-tree 

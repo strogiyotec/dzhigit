@@ -6,7 +6,7 @@ I am using git in a daily basics but know nothing about the internal datastructu
 
 ## TODO
 1. add 
-2. cat-file 
+2. [X] cat-file 
 3. checkout 
 4. commit 
 5. [X] hash-object 

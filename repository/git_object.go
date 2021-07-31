@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -30,7 +31,7 @@ type DefaultGitFileFormatter struct {
 
 type DeserializedGitObject struct {
 	objType GitObjectType
-	Content []byte
+	Content string
 }
 
 type SerializedGitObject struct {
@@ -39,34 +40,18 @@ type SerializedGitObject struct {
 }
 
 func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitObject, error) {
-	spaceIndex := strings.Index(string(data), " ")
-	objType, err := AsGitObjectType(string(data[0:spaceIndex]))
+	unzipped, err := unzipped(data)
+	unzippedContent := string(unzipped)
 	if err != nil {
 		return nil, err
 	}
-	nullIndex := strings.Index(string(data), "\x00")
-	length := binary.BigEndian.Uint32(data[spaceIndex:nullIndex])
-	if length != uint32(len(data)-nullIndex-1) {
-		return nil,
-			errors.New(
-				fmt.Sprintf(
-					`Invalid git object for deserialization , 
-                    the length in the head is %d , expected %d\n`,
-					length,
-					len(data)-nullIndex-1,
-				),
-			)
-	}
-	return &DeserializedGitObject{
-		objType: objType,
-		Content: data[nullIndex+1:],
-	}, nil
+	return newDeserializedObj(unzippedContent)
 }
 
 func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error) {
 	header := header(data, objType)
 	result := append(header, data...)
-	hash, err := hashed(result)
+	hash, err := generateHash(result)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +63,6 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 		Hash:    fmt.Sprintf("%x", hash),
 		content: zipped,
 	}, nil
-
 }
 func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path string) error {
 	hashDir, fileName := BlobDirWithFileName(serialized.Hash)
@@ -108,6 +92,49 @@ func BlobDirWithFileName(hash string) (string, string) {
 	return hash[0:2], hash[2:]
 }
 
+func newDeserializedObj(content string) (*DeserializedGitObject, error) {
+	spaceIndex := strings.Index(content, " ")
+	objType, err := AsGitObjectType(content[0:spaceIndex])
+	if err != nil {
+		return nil, err
+	}
+	nullIndex := strings.Index(content, "\x00")
+	length, err := strconv.Atoi(content[spaceIndex+1 : nullIndex])
+	if err != nil {
+		return nil, err
+	}
+	if length != len(content)-nullIndex-1 {
+		return nil,
+			errors.New(
+				fmt.Sprintf(
+					`Invalid git object for deserialization , 
+                    the length in the head is %d , expected %d\n`,
+					length,
+					len(content)-nullIndex-1,
+				),
+			)
+	}
+	return &DeserializedGitObject{
+		objType: objType,
+		Content: content[nullIndex+1:],
+	}, nil
+}
+
+func unzipped(data []byte) ([]byte, error) {
+	buffer := bytes.NewReader(data)
+	reader, err := zlib.NewReader(buffer)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	var out bytes.Buffer
+	_, err = io.Copy(&out, reader)
+	if err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
 func zipped(data []byte) ([]byte, error) {
 	var buffer bytes.Buffer
 	w := zlib.NewWriter(&buffer)
@@ -119,7 +146,7 @@ func zipped(data []byte) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func hashed(data []byte) ([]byte, error) {
+func generateHash(data []byte) ([]byte, error) {
 	hash := sha1.New()
 	_, err := hash.Write(data)
 	if err != nil {
@@ -129,6 +156,7 @@ func hashed(data []byte) ([]byte, error) {
 
 }
 
+//[type] [length][null]
 func header(data []byte, objType GitObjectType) []byte {
 	return []byte(
 		fmt.Sprintf(

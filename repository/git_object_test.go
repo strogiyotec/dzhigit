@@ -2,21 +2,30 @@ package repository
 
 import (
 	"crypto/sha1"
-	"fmt"
 	"testing"
 )
 
 func Test_SerializeAndDeserialize(t *testing.T) {
+	content := "Hello world"
 	fileFormatter := DefaultGitFileFormatter{}
-	serialized, err := fileFormatter.Serialize([]byte("Hello world"), BLOB)
+	serialized, err := fileFormatter.Serialize([]byte(content), BLOB)
 	if err != nil {
 		t.Fatal(err.Error())
 		return
 	}
-	if len(serialized.Hash) != sha1.Size {
-		fmt.Println("Invalid hash length, has to be 40 ")
+	if len(serialized.Hash) != sha1.Size*2 {
+		t.Fatalf("Invalid hash length, expected %d , got %d ", sha1.Size*2, len(serialized.Hash))
 	}
-	//TODO: test content of the serialized object
+	deserialized, err := fileFormatter.Deserialize(serialized.content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deserialized.objType != BLOB {
+		t.Fatalf("Wrong object type , blog expected, got %s", deserialized.objType)
+	}
+	if content != deserialized.Content {
+		t.Fatalf("Wrong content , expected '%s' , got '%s'", content, deserialized.Content)
+	}
 }
 
 func Test_header(t *testing.T) {

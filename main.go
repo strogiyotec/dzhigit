@@ -74,7 +74,10 @@ func main() {
 			}
 			gitFile := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(path)
-			deser, err := cli.GitCat(cli.Git.CatFile.Hash, gitFile, objPath)
+			var reader cli.FileReader = func(path string) ([]byte, error) {
+				return ioutil.ReadFile(path)
+			}
+			deser, err := cli.GitCat(cli.Git.CatFile.Hash, gitFile, objPath, reader)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

@@ -16,8 +16,9 @@ import (
 type GitObjectType string
 
 const (
-	BLOB GitObjectType = "blob"
-	TREE               = "tree"
+	BLOB   GitObjectType = "blob"
+	TREE                 = "tree"
+	COMMIT               = "commit"
 )
 
 type GitFileFormatter interface {

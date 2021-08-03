@@ -32,6 +32,10 @@ func main() {
 		}
 	case "hash-object <file>":
 		{
+			if true {
+				fmt.Println(cli.Git.HashObject.Type)
+				return
+			}
 			gitFile := repository.DefaultGitFileFormatter{}
 			content, err := ioutil.ReadFile(cli.Git.HashObject.File)
 			if err != nil {
@@ -83,6 +87,22 @@ func main() {
 				return
 			}
 			fmt.Println(deser.Content)
+		}
+	case "update-index <hash> <file> <mode>":
+		{
+			path := repository.DefaultPath()
+			if !repository.Exists(path) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			objPath := repository.ObjPath(path)
+			indexParams := cli.Git.UpdateIndex
+			index, err := repository.NewIndex(indexParams.File, indexParams.Mode, indexParams.Hash, objPath)
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println(index.String())
+			}
 		}
 	default:
 		fmt.Println("Default")

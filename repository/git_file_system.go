@@ -11,11 +11,16 @@ const (
 	Head        = "Head"
 	Config      = "Config"
 	Description = "Description"
+	Index       = "index"
 )
 
 func DefaultPath() string {
 	path, _ := os.Getwd()
 	return path + "/.dzhigit"
+}
+
+func IndexPath(path string) string {
+	return path + Index
 }
 
 func ObjPath(path string) string {

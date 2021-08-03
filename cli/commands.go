@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/strogiyotec/dzhigit/repository"
 )
@@ -31,6 +32,17 @@ func GitCat(
 		return nil, err
 	}
 	return fileFormatter.Deserialize(data)
+}
+
+func UpdateIndex(index repository.IndexEntry, path string) error {
+	indexPath := repository.IndexPath(path)
+	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	f.WriteString("dsds")
+	return nil
 }
 
 func NewGitAdd(files []string, repoPath string) (*GitAdd, error) {

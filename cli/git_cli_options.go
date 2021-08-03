@@ -14,4 +14,9 @@ var Git struct {
 	CatFile struct {
 		Hash string `arg name:"hash" help:"object hash"`
 	} `cmd help:"Print the content of a blob by hash"`
+	UpdateIndex struct {
+		Hash string `arg name:"hash" help:"hash" `
+		File string `arg name:"file" help:"path to file to save in index" `
+		Mode string `arg name:"mode" help:"file mode" enum:"100644,100755" default"100644"`
+	} `cmd help:"Update index"`
 }

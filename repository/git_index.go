@@ -32,7 +32,6 @@ type IndexEntry struct {
 	hash             string
 }
 
-//TODO: add test
 //file - the file's name to index
 //plainMode - the files' type
 //hash - the hash of this file to index

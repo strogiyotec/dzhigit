@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/strogiyotec/dzhigit/cli"
@@ -32,10 +35,6 @@ func main() {
 		}
 	case "hash-object <file>":
 		{
-			if true {
-				fmt.Println(cli.Git.HashObject.Type)
-				return
-			}
 			gitFile := repository.DefaultGitFileFormatter{}
 			content, err := ioutil.ReadFile(cli.Git.HashObject.File)
 			if err != nil {
@@ -66,8 +65,11 @@ func main() {
 					fmt.Println(err.Error())
 					return
 				}
+				fmt.Println(serialized.Hash)
+				fmt.Println("The file with given hash was saved")
+			} else {
+				fmt.Println(serialized.Hash)
 			}
-			fmt.Println(serialized.Hash)
 		}
 	case "cat-file <hash>":
 		{
@@ -90,18 +92,65 @@ func main() {
 		}
 	case "update-index <hash> <file> <mode>":
 		{
-			path := repository.DefaultPath()
-			if !repository.Exists(path) {
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
 				fmt.Println("Dzhigit repository doesn't exist")
 				return
 			}
-			objPath := repository.ObjPath(path)
+			objPath := repository.ObjPath(gitRepoPath)
 			indexParams := cli.Git.UpdateIndex
+			//TODO: check if already exists
 			index, err := repository.NewIndex(indexParams.File, indexParams.Mode, indexParams.Hash, objPath)
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {
-				fmt.Println(index.String())
+				indexPath := repository.IndexPath(gitRepoPath)
+				err := cli.UpdateIndex(*index, indexPath)
+				if err != nil {
+					fmt.Println(err.Error())
+				} else {
+					fmt.Printf("File %s was saved in index", indexParams.File)
+				}
+			}
+		}
+	case "ls-tree":
+		{
+			//TODO: move above switch case
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			indexPath := repository.IndexPath(gitRepoPath)
+			file, err := os.Open(indexPath)
+			if err != nil {
+				fmt.Printf("Error opening index file %s", err.Error())
+				return
+			}
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				fmt.Println(scanner.Text())
+			}
+		}
+	case "write-tree":
+		{
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			indexPath := repository.IndexPath(gitRepoPath)
+			content, err := ioutil.ReadFile(indexPath)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+			_, err = cli.WriteTree(lines)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
 			}
 		}
 	default:

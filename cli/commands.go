@@ -17,6 +17,31 @@ type GitAdd struct {
 //use first class function to improve testability
 type FileReader func(path string) ([]byte, error)
 
+func WriteTree(indexLines []string) ([]byte, error) {
+	indexes := []repository.IndexEntry{}
+	for _, line := range indexLines {
+		index, err := repository.ParseLineToIndex(line)
+		if err != nil {
+			return nil, err
+		}
+		indexes = append(indexes, *index)
+	}
+	//map key is a file level and value is a list of indexes in this level
+	levels := make(map[int][]repository.IndexEntry)
+	for _, index := range indexes {
+		depth := index.Depth()
+		if val, ok := levels[depth]; ok {
+			val = append(val, index)
+		} else {
+			val := []repository.IndexEntry{}
+			val = append(val, index)
+			levels[depth] = val
+		}
+	}
+	fmt.Println(levels)
+	return []byte(string("test")), nil
+}
+
 func GitCat(
 	hash string,
 	fileFormatter repository.GitFileFormatter,
@@ -35,14 +60,12 @@ func GitCat(
 }
 
 func UpdateIndex(index repository.IndexEntry, path string) error {
-	indexPath := repository.IndexPath(path)
-	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	f.WriteString("dsds")
-	return nil
+	return repository.Add(index, f)
 }
 
 func NewGitAdd(files []string, repoPath string) (*GitAdd, error) {

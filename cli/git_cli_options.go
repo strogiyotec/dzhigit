@@ -19,4 +19,8 @@ var Git struct {
 		File string `arg name:"file" help:"path to file to save in index" `
 		Mode string `arg name:"mode" help:"file mode" enum:"100644,100755" default"100644"`
 	} `cmd help:"Update index"`
+	LsTree struct {
+	} `cmd help:"Print index content"`
+	WriteTree struct {
+	} `cmd help:"Create a tree object from index file"`
 }

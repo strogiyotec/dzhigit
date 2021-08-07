@@ -11,7 +11,7 @@ const (
 	Head        = "Head"
 	Config      = "Config"
 	Description = "Description"
-	Index       = "index"
+	Index       = "/index"
 )
 
 func DefaultPath() string {

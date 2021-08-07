@@ -12,13 +12,15 @@ I am using git in a daily basics but know nothing about the internal datastructu
 5. [X] hash-object 
 6. init 
 7. log 
-8. ls-tree 
+8. [X] ls-tree 
 9. merge 
 10. rebase 
 11. rev-parse 
 12. rm 
 13. show-ref 
-14. tag 
+14. tag
+15. [X] index
+16. [ ] write-tree
     
 ## How it works
 ### Blobs

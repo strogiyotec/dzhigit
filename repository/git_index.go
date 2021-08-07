@@ -3,6 +3,10 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -12,6 +16,8 @@ const (
 	FILE       Mode = "100644"
 	EXECUTABLE      = "100755"
 )
+
+const INDEX_PARTS = 5
 
 func AsMode(mode string) (Mode, error) {
 	switch mode {
@@ -24,12 +30,23 @@ func AsMode(mode string) (Mode, error) {
 	}
 }
 
+func Add(entry IndexEntry, writer io.Writer) error {
+	_, err := writer.Write([]byte(entry.String() + "\n"))
+	return err
+}
+
 type IndexEntry struct {
 	path             string
 	mode             Mode
 	creationTime     int64
 	modificationTime int64
 	hash             string
+}
+
+//Get the depth of a file for given index
+func (entry *IndexEntry) Depth() int {
+	parts := strings.Split(entry.path, string(os.PathSeparator))
+	return len(parts)
 }
 
 //file - the file's name to index
@@ -61,6 +78,39 @@ func NewIndex(file, plainMode, hash, repoPath string) (*IndexEntry, error) {
 	}, nil
 }
 
+//Parse given line to index entry
+func ParseLineToIndex(line string) (*IndexEntry, error) {
+	parts := strings.Fields(line)
+	if len(parts) != INDEX_PARTS {
+		return nil,
+			errors.New(
+				fmt.Sprintf(
+					"Invalid line for index, should containt %d parts, was %d",
+					INDEX_PARTS,
+					len(parts),
+				),
+			)
+	}
+	mode, err := AsMode(parts[0])
+	if err != nil {
+		return nil, errors.New("Unknown index type " + parts[0])
+	}
+	crTime, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return nil, errors.New("Invalid creation time, long expected")
+	}
+	modTime, err := strconv.ParseInt(parts[2], 10, 64)
+	hash := parts[3]
+	path := parts[4]
+	return &IndexEntry{
+		mode:             mode,
+		creationTime:     crTime,
+		modificationTime: modTime,
+		hash:             hash,
+		path:             path,
+	}, nil
+}
+
 func getTimes(path string) (int64, int64, error) {
 	var st syscall.Stat_t
 	if err := syscall.Stat(path, &st); err != nil {
@@ -80,8 +130,4 @@ func (index IndexEntry) String() string {
 		index.hash,
 		index.path,
 	)
-}
-
-type GitIndex interface {
-	Add(IndexEntry) error
 }

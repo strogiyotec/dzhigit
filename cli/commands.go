@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/strogiyotec/dzhigit/repository"
 )
@@ -13,11 +14,77 @@ type GitAdd struct {
 	reposPath string
 }
 
+type graph struct {
+	node     string
+	vertices map[string][]graph
+}
+
 //reader to read a file content by path
 //use first class function to improve testability
 type FileReader func(path string) ([]byte, error)
 
-func WriteTree(indexLines []string) ([]byte, error) {
+func createTreeEntry(
+	level int,
+	indexes []repository.IndexEntry,
+	fileFormatter repository.GitFileFormatter,
+	objPath string,
+) (*repository.SerializedGitObject, error) {
+	if len(indexes) == 0 {
+		return nil, nil
+	}
+	nextLevels := make(map[string][]repository.IndexEntry)
+	builder := strings.Builder{}
+	for _, index := range indexes {
+		if index.Depth() == level {
+			builder.WriteString(index.TreeString() + "\n")
+		} else {
+			if val, ok := nextLevels[index.PathParts()[level-1]]; ok {
+				val = append(val, index)
+				nextLevels[index.PathParts()[level-1]] = val
+			} else {
+				entries := []repository.IndexEntry{}
+				entries = append(entries, index)
+				nextLevels[index.PathParts()[level-1]] = entries
+			}
+		}
+	}
+	for key, elements := range nextLevels {
+		tree, err := createTreeEntry(level+1, elements, fileFormatter, objPath)
+		if err != nil {
+			return nil, err
+		}
+		if tree != nil {
+			err = fileFormatter.Save(tree, objPath)
+			if err != nil {
+				return nil, err
+			}
+			builder.WriteString(treeLine(tree.Hash, key))
+		}
+	}
+	tree, err := fileFormatter.Serialize(
+		[]byte(builder.String()),
+		repository.TREE,
+	)
+	if err != nil {
+		return nil, err
+	}
+	err = fileFormatter.Save(tree, objPath)
+	if err != nil {
+		return nil, err
+	}
+	return tree, nil
+}
+
+//string that shows how a reference to a tree is stored inside of a tree file
+func treeLine(hash, dir string) string {
+	return fmt.Sprintf("040000 tree %s\t%s", hash, dir)
+}
+
+func WriteTree(
+	indexLines []string,
+	objPath string,
+	gitFormatter repository.GitFileFormatter,
+) (*repository.SerializedGitObject, error) {
 	indexes := []repository.IndexEntry{}
 	for _, line := range indexLines {
 		index, err := repository.ParseLineToIndex(line)
@@ -26,20 +93,7 @@ func WriteTree(indexLines []string) ([]byte, error) {
 		}
 		indexes = append(indexes, *index)
 	}
-	//map key is a file level and value is a list of indexes in this level
-	levels := make(map[int][]repository.IndexEntry)
-	for _, index := range indexes {
-		depth := index.Depth()
-		if val, ok := levels[depth]; ok {
-			val = append(val, index)
-		} else {
-			val := []repository.IndexEntry{}
-			val = append(val, index)
-			levels[depth] = val
-		}
-	}
-	fmt.Println(levels)
-	return []byte(string("test")), nil
+	return createTreeEntry(1, indexes, gitFormatter, objPath)
 }
 
 func GitCat(

@@ -146,11 +146,18 @@ func main() {
 				fmt.Println(err.Error())
 				return
 			}
+			objPath := repository.ObjPath(gitRepoPath)
 			lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-			_, err = cli.WriteTree(lines)
+			tree, err := cli.WriteTree(
+				lines,
+				objPath,
+				&repository.DefaultGitFileFormatter{},
+			)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
+			} else {
+				fmt.Println(tree.Hash)
 			}
 		}
 	default:

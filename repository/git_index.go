@@ -43,8 +43,12 @@ type IndexEntry struct {
 	hash             string
 }
 
+func (entry IndexEntry) PathParts() []string {
+	return strings.Split(entry.path, string(os.PathSeparator))
+}
+
 //Get the depth of a file for given index
-func (entry *IndexEntry) Depth() int {
+func (entry IndexEntry) Depth() int {
 	parts := strings.Split(entry.path, string(os.PathSeparator))
 	return len(parts)
 }
@@ -117,6 +121,15 @@ func getTimes(path string) (int64, int64, error) {
 		return -1, -1, err
 	}
 	return st.Mtim.Sec, st.Ctim.Sec, nil
+}
+
+func (index IndexEntry) TreeString() string {
+	return fmt.Sprintf(
+		"%s %s blob\t%s",
+		index.mode,
+		index.hash,
+		index.path,
+	)
 }
 
 //TODO: add test

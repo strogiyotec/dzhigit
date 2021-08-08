@@ -17,7 +17,7 @@ const (
 	EXECUTABLE      = "100755"
 )
 
-const INDEX_PARTS = 5
+const IndexParts = 5
 
 func AsMode(mode string) (Mode, error) {
 	switch mode {
@@ -26,7 +26,7 @@ func AsMode(mode string) (Mode, error) {
 	case "100755":
 		return EXECUTABLE, nil
 	default:
-		return "", errors.New("Invalid file mode")
+		return "", errors.New("Invalid file mode ")
 	}
 }
 
@@ -85,12 +85,12 @@ func NewIndex(file, plainMode, hash, repoPath string) (*IndexEntry, error) {
 //Parse given line to index entry
 func ParseLineToIndex(line string) (*IndexEntry, error) {
 	parts := strings.Fields(line)
-	if len(parts) != INDEX_PARTS {
+	if len(parts) != IndexParts {
 		return nil,
 			errors.New(
 				fmt.Sprintf(
 					"Invalid line for index, should containt %d parts, was %d",
-					INDEX_PARTS,
+					IndexParts,
 					len(parts),
 				),
 			)
@@ -101,7 +101,7 @@ func ParseLineToIndex(line string) (*IndexEntry, error) {
 	}
 	crTime, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return nil, errors.New("Invalid creation time, long expected")
+		return nil, errors.New("Invalid creation time, long expected ")
 	}
 	modTime, err := strconv.ParseInt(parts[2], 10, 64)
 	hash := parts[3]
@@ -123,24 +123,26 @@ func getTimes(path string) (int64, int64, error) {
 	return st.Mtim.Sec, st.Ctim.Sec, nil
 }
 
-func (index IndexEntry) TreeString() string {
+//String representation of a single file in a tree
+func (entry IndexEntry) BlobString(part int) string {
+	parts := entry.PathParts()
 	return fmt.Sprintf(
-		"%s %s blob\t%s",
-		index.mode,
-		index.hash,
-		index.path,
+		"%s blob %s\t%s",
+		entry.mode,
+		entry.hash,
+		parts[part],
 	)
 }
 
 //TODO: add test
-func (index IndexEntry) String() string {
+func (entry IndexEntry) String() string {
 	//Mode C_time M_time sha1-hash F_name
 	return fmt.Sprintf(
 		"%s %d %d %s\t%s",
-		index.mode,
-		index.creationTime,
-		index.modificationTime,
-		index.hash,
-		index.path,
+		entry.mode,
+		entry.creationTime,
+		entry.modificationTime,
+		entry.hash,
+		entry.path,
 	)
 }

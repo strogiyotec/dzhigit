@@ -36,13 +36,13 @@ func createTreeEntry(
 	builder := strings.Builder{}
 	for _, index := range indexes {
 		if index.Depth() == level {
-			builder.WriteString(index.TreeString() + "\n")
+			builder.WriteString(index.BlobString(level-1) + "\n")
 		} else {
 			if val, ok := nextLevels[index.PathParts()[level-1]]; ok {
 				val = append(val, index)
 				nextLevels[index.PathParts()[level-1]] = val
 			} else {
-				entries := []repository.IndexEntry{}
+				var entries []repository.IndexEntry
 				entries = append(entries, index)
 				nextLevels[index.PathParts()[level-1]] = entries
 			}
@@ -54,10 +54,6 @@ func createTreeEntry(
 			return nil, err
 		}
 		if tree != nil {
-			err = fileFormatter.Save(tree, objPath)
-			if err != nil {
-				return nil, err
-			}
 			builder.WriteString(treeLine(tree.Hash, key))
 		}
 	}
@@ -68,6 +64,7 @@ func createTreeEntry(
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(tree.Hash)
 	err = fileFormatter.Save(tree, objPath)
 	if err != nil {
 		return nil, err
@@ -76,6 +73,7 @@ func createTreeEntry(
 }
 
 //string that shows how a reference to a tree is stored inside of a tree file
+//TODO: can we unite it with Index Entry Blob String ?
 func treeLine(hash, dir string) string {
 	return fmt.Sprintf("040000 tree %s\t%s", hash, dir)
 }
@@ -85,7 +83,7 @@ func WriteTree(
 	objPath string,
 	gitFormatter repository.GitFileFormatter,
 ) (*repository.SerializedGitObject, error) {
-	indexes := []repository.IndexEntry{}
+	var indexes []repository.IndexEntry
 	for _, line := range indexLines {
 		index, err := repository.ParseLineToIndex(line)
 		if err != nil {
@@ -129,7 +127,7 @@ func NewGitAdd(files []string, repoPath string) (*GitAdd, error) {
 			reposPath: repoPath,
 		}, nil
 	} else {
-		return nil, errors.New("Can't add git files, repository doesn't exist")
+		return nil, errors.New("Can't add git files, repository doesn't exist ")
 	}
 }
 

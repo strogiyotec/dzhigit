@@ -82,7 +82,7 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path s
 		}
 		return writer.Flush()
 	} else {
-		return errors.New("Hash already exists")
+		return errors.New(fmt.Sprintf("Hash %s already exists", serialized.Hash))
 	}
 }
 

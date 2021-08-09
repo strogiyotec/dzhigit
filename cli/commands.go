@@ -64,9 +64,12 @@ func createTreeEntry(
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(tree.Hash)
 	err = fileFormatter.Save(tree, objPath)
 	if err != nil {
+		//if tree already exists then just return it
+		if _, ok := err.(*repository.TreeAlreadyExistError); ok {
+			return tree, nil
+		}
 		return nil, err
 	}
 	return tree, nil

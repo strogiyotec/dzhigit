@@ -27,6 +27,20 @@ type GitFileFormatter interface {
 	Save(serialized *SerializedGitObject, path string) error
 }
 
+type TreeAlreadyExistError struct {
+	message string
+}
+
+func NewTreeAlreadyExistError(message string) *TreeAlreadyExistError {
+	return &TreeAlreadyExistError{
+		message: message,
+	}
+}
+
+func (err *TreeAlreadyExistError) Error() string {
+	return err.message
+}
+
 type DefaultGitFileFormatter struct {
 }
 
@@ -82,7 +96,7 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path s
 		}
 		return writer.Flush()
 	} else {
-		return errors.New(fmt.Sprintf("Hash %s already exists", serialized.Hash))
+		return NewTreeAlreadyExistError(fmt.Sprintf("Hash %s already exists", serialized.Hash))
 	}
 }
 

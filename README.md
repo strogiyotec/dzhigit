@@ -8,7 +8,7 @@ I am using git in a daily basics but know nothing about the internal datastructu
 1. add 
 2. [X] cat-file 
 3. checkout 
-4. commit 
+4. commit-tree
 5. [X] hash-object 
 6. init 
 7. log 
@@ -20,7 +20,7 @@ I am using git in a daily basics but know nothing about the internal datastructu
 13. show-ref 
 14. tag
 15. [X] index
-16. [ ] write-tree
+16. [X] write-tree
     
 ## How it works
 ### Blobs

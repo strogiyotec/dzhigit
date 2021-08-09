@@ -160,6 +160,11 @@ func main() {
 				fmt.Println(tree.Hash)
 			}
 		}
+	case "commit-tree <hash>":
+		{
+			//TODO: Implement
+			fmt.Println(cli.Git.CommitTree.Hash, cli.Git.CommitTree.Message)
+		}
 	default:
 		fmt.Println("Default")
 	}

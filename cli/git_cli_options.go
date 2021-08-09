@@ -23,4 +23,8 @@ var Git struct {
 	} `cmd help:"Print index content"`
 	WriteTree struct {
 	} `cmd help:"Create a tree object from index file"`
+	CommitTree struct {
+		Message string `help:"Commit message" short:"m" required:""`
+		Hash    string `arg name:"hash" help:"hash of a tree object" `
+	} `cmd help:"Create a commit object"`
 }

@@ -127,7 +127,7 @@ func getTimes(path string) (int64, int64, error) {
 func (entry IndexEntry) BlobString(part int) string {
 	parts := entry.PathParts()
 	return fmt.Sprintf(
-		"%s blob %s\t%s",
+		"%s blob %s\t%s\n",
 		entry.mode,
 		entry.hash,
 		parts[part],

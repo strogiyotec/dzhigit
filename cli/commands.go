@@ -23,6 +23,7 @@ type graph struct {
 //use first class function to improve testability
 type FileReader func(path string) ([]byte, error)
 
+//TODO: write a test
 func createTreeEntry(
 	level int,
 	indexes []repository.IndexEntry,
@@ -36,7 +37,7 @@ func createTreeEntry(
 	builder := strings.Builder{}
 	for _, index := range indexes {
 		if index.Depth() == level {
-			builder.WriteString(index.BlobString(level-1) + "\n")
+			builder.WriteString(index.BlobString(level - 1))
 		} else {
 			if val, ok := nextLevels[index.PathParts()[level-1]]; ok {
 				val = append(val, index)
@@ -78,7 +79,7 @@ func createTreeEntry(
 //string that shows how a reference to a tree is stored inside of a tree file
 //TODO: can we unite it with Index Entry Blob String ?
 func treeLine(hash, dir string) string {
-	return fmt.Sprintf("040000 tree %s\t%s", hash, dir)
+	return fmt.Sprintf("040000 tree %s\t%s\n", hash, dir)
 }
 
 func WriteTree(

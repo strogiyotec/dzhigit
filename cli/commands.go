@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,14 +15,67 @@ type GitAdd struct {
 	reposPath string
 }
 
-type graph struct {
-	node     string
-	vertices map[string][]graph
+type User struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+func NewUser(content []byte) (*User, error) {
+	var user User
+	err := json.Unmarshal(content, &user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 //reader to read a file content by path
 //use first class function to improve testability
 type FileReader func(path string) ([]byte, error)
+
+func CommitTree(
+	message string,
+	hash string,
+	currentTime int64,
+	timeZoneName string,
+	path string,
+	user User,
+	gitFileSystem repository.GitFileFormatter,
+) (*repository.SerializedGitObject, error) {
+	dir, fileName := repository.BlobDirWithFileName(hash)
+	if !repository.Exists(path + dir + "/" + fileName) {
+		return nil,
+			errors.New(
+				fmt.Sprintf(
+					"File with hash %s doesn't exist",
+					hash,
+				),
+			)
+	}
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("tree %s\n", hash))
+	builder.WriteString(
+		fmt.Sprintf(
+			"author %s <%s> %d %s\n",
+			user.Name,
+			user.Email,
+			currentTime,
+			timeZoneName,
+		),
+	)
+	builder.WriteString(
+		fmt.Sprintf(
+			"comitter %s <%s> %d %s\n",
+			user.Name,
+			user.Email,
+			currentTime,
+			timeZoneName,
+		),
+	)
+	builder.WriteString("\n")
+	builder.WriteString(fmt.Sprintf("%s\n", message))
+	return gitFileSystem.Serialize([]byte(builder.String()), repository.COMMIT)
+}
 
 //TODO: write a test
 func createTreeEntry(

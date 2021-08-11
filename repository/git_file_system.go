@@ -9,7 +9,7 @@ const (
 	Objects     = "/objects/"
 	Refs        = "/refs/"
 	Head        = "Head"
-	Config      = "Config"
+	Config      = "/config.json"
 	Description = "Description"
 	Index       = "/index"
 )
@@ -17,6 +17,10 @@ const (
 func DefaultPath() string {
 	path, _ := os.Getwd()
 	return path + "/.dzhigit"
+}
+
+func ConfigPath(path string) string {
+	return path + Config
 }
 
 func IndexPath(path string) string {

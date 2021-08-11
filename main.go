@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/strogiyotec/dzhigit/cli"
@@ -162,8 +163,56 @@ func main() {
 		}
 	case "commit-tree <hash>":
 		{
-			//TODO: Implement
-			fmt.Println(cli.Git.CommitTree.Hash, cli.Git.CommitTree.Message)
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			content, err := os.ReadFile(repository.ConfigPath(gitRepoPath))
+			if err != nil {
+				fmt.Printf("Error reading a config file %s", err.Error())
+				return
+			}
+			user, err := cli.NewUser(content)
+			if err != nil {
+				fmt.Printf(
+					"Error reading a user's data from config file %s",
+					err.Error(),
+				)
+				return
+			}
+			now := time.Now()
+			unixTime := now.Unix()
+			zone, _ := now.Zone()
+			repo := &repository.DefaultGitFileFormatter{}
+			objPath := repository.ObjPath(gitRepoPath)
+			ser, err := cli.CommitTree(
+				cli.Git.CommitTree.Message,
+				cli.Git.CommitTree.Hash,
+				unixTime,
+				zone,
+				objPath,
+				*user,
+				repo,
+			)
+			if err != nil {
+				fmt.Printf(
+					"Error serializing a commit object %s",
+					err.Error(),
+				)
+				return
+			} else {
+				err := repo.Save(ser, objPath)
+				if err != nil {
+					fmt.Printf(
+						"Error saving a commit object %s",
+						err.Error(),
+					)
+					return
+				} else {
+					fmt.Println(ser.Hash)
+				}
+			}
 		}
 	default:
 		fmt.Println("Default")

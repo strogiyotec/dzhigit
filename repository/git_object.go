@@ -189,6 +189,8 @@ func AsGitObjectType(str string) (GitObjectType, error) {
 		return BLOB, nil
 	case "tree":
 		return TREE, nil
+	case "commit":
+		return COMMIT, nil
 	default:
 		return "",
 			errors.New(

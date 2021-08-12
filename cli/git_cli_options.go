@@ -25,6 +25,7 @@ var Git struct {
 	} `cmd help:"Create a tree object from index file"`
 	CommitTree struct {
 		Message string `help:"Commit message" short:"m" required:""`
+		Parent  string ` help:"hash of a parent commit" short:"p" default:"" `
 		Hash    string `arg name:"hash" help:"hash of a tree object" `
 	} `cmd help:"Create a commit object"`
 }

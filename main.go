@@ -6,12 +6,15 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/strogiyotec/dzhigit/cli"
 	"github.com/strogiyotec/dzhigit/repository"
 )
+
+var reader repository.FileReader = func(path string) ([]byte, error) {
+	return ioutil.ReadFile(path)
+}
 
 func main() {
 	ctx := kong.Parse(&cli.Git)
@@ -81,9 +84,6 @@ func main() {
 			}
 			gitFile := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(path)
-			var reader cli.FileReader = func(path string) ([]byte, error) {
-				return ioutil.ReadFile(path)
-			}
 			deser, err := cli.GitCat(cli.Git.CatFile.Hash, gitFile, objPath, reader)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -116,7 +116,7 @@ func main() {
 		}
 	case "ls-tree":
 		{
-			//TODO: move above switch case
+			//TODO: move this check above all switch cases
 			gitRepoPath := repository.DefaultPath()
 			if !repository.Exists(gitRepoPath) {
 				fmt.Println("Dzhigit repository doesn't exist")
@@ -181,19 +181,21 @@ func main() {
 				)
 				return
 			}
-			now := time.Now()
-			unixTime := now.Unix()
-			zone, _ := now.Zone()
+			time := cli.CurrentTime()
+			commit := cli.NewCommit(
+				cli.Git.CommitTree.Hash,
+				cli.Git.CommitTree.Message,
+				cli.Git.CommitTree.Parent,
+			)
 			repo := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(gitRepoPath)
 			ser, err := cli.CommitTree(
-				cli.Git.CommitTree.Message,
-				cli.Git.CommitTree.Hash,
-				unixTime,
-				zone,
+				*commit,
+				*time,
 				objPath,
 				*user,
 				repo,
+				reader,
 			)
 			if err != nil {
 				fmt.Printf(

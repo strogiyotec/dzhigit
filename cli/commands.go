@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/strogiyotec/dzhigit/repository"
 )
@@ -15,9 +16,38 @@ type GitAdd struct {
 	reposPath string
 }
 
+type Time struct {
+	zone        string
+	unixSeconds int64
+}
+
 type User struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type Commit struct {
+	treeHash   string //hash of a tree object
+	message    string
+	parentHash string //hash of a parent commit may be null
+}
+
+func NewCommit(hash, message, parent string) *Commit {
+	return &Commit{
+		treeHash:   hash,
+		message:    message,
+		parentHash: parent,
+	}
+}
+
+func CurrentTime() *Time {
+	now := time.Now()
+	zone, _ := now.Zone()
+	seconds := now.Unix()
+	return &Time{
+		zone:        zone,
+		unixSeconds: seconds,
+	}
 }
 
 func NewUser(content []byte) (*User, error) {
@@ -29,38 +59,52 @@ func NewUser(content []byte) (*User, error) {
 	return &user, nil
 }
 
-//reader to read a file content by path
-//use first class function to improve testability
-type FileReader func(path string) ([]byte, error)
-
 func CommitTree(
-	message string,
-	hash string,
-	currentTime int64,
-	timeZoneName string,
+	commit Commit,
+	time Time,
 	path string,
 	user User,
-	gitFileSystem repository.GitFileFormatter,
+	fileFormatter repository.GitFileFormatter,
+	reader repository.FileReader,
 ) (*repository.SerializedGitObject, error) {
-	dir, fileName := repository.BlobDirWithFileName(hash)
-	if !repository.Exists(path + dir + "/" + fileName) {
+	tp, err := repository.TypeByHash(path, commit.treeHash, reader, fileFormatter)
+	if err != nil {
+		return nil, err
+	}
+	if tp != repository.TREE {
 		return nil,
 			errors.New(
 				fmt.Sprintf(
-					"File with hash %s doesn't exist",
-					hash,
+					"Given hash %s is not a tree object",
+					commit.treeHash,
 				),
 			)
 	}
 	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("tree %s\n", hash))
+	builder.WriteString(fmt.Sprintf("tree %s\n", commit.treeHash))
+	if len(commit.parentHash) != 0 {
+		tp, err := repository.TypeByHash(path, commit.parentHash, reader, fileFormatter)
+		if err != nil {
+			return nil, err
+		}
+		if tp != repository.COMMIT {
+			return nil,
+				errors.New(
+					fmt.Sprintf(
+						"Given hash %s is not a commit object",
+						commit.treeHash,
+					),
+				)
+		}
+		builder.WriteString(fmt.Sprintf("parent %s\n", commit.parentHash))
+	}
 	builder.WriteString(
 		fmt.Sprintf(
 			"author %s <%s> %d %s\n",
 			user.Name,
 			user.Email,
-			currentTime,
-			timeZoneName,
+			time.unixSeconds,
+			time.zone,
 		),
 	)
 	builder.WriteString(
@@ -68,13 +112,13 @@ func CommitTree(
 			"comitter %s <%s> %d %s\n",
 			user.Name,
 			user.Email,
-			currentTime,
-			timeZoneName,
+			time.unixSeconds,
+			time.zone,
 		),
 	)
 	builder.WriteString("\n")
-	builder.WriteString(fmt.Sprintf("%s\n", message))
-	return gitFileSystem.Serialize([]byte(builder.String()), repository.COMMIT)
+	builder.WriteString(fmt.Sprintf("%s\n", commit.message))
+	return fileFormatter.Serialize([]byte(builder.String()), repository.COMMIT)
 }
 
 //TODO: write a test
@@ -156,7 +200,7 @@ func GitCat(
 	hash string,
 	fileFormatter repository.GitFileFormatter,
 	path string,
-	reader FileReader,
+	reader repository.FileReader,
 ) (*repository.DeserializedGitObject, error) {
 	dir, fileName := repository.BlobDirWithFileName(hash)
 	if !repository.Exists(path + dir + "/" + fileName) {

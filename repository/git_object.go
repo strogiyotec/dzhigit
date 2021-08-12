@@ -21,6 +21,10 @@ const (
 	COMMIT               = "commit"
 )
 
+//reader to read a file content by path
+//use first class function to improve testability
+type FileReader func(path string) ([]byte, error)
+
 type GitFileFormatter interface {
 	Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error)
 	Deserialize(data []byte) (*DeserializedGitObject, error)
@@ -37,10 +41,6 @@ func NewTreeAlreadyExistError(message string) *TreeAlreadyExistError {
 	}
 }
 
-func (err *TreeAlreadyExistError) Error() string {
-	return err.message
-}
-
 type DefaultGitFileFormatter struct {
 }
 
@@ -52,6 +52,10 @@ type DeserializedGitObject struct {
 type SerializedGitObject struct {
 	Hash    string
 	content []byte
+}
+
+func (err *TreeAlreadyExistError) Error() string {
+	return err.message
 }
 
 func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitObject, error) {
@@ -98,6 +102,22 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path s
 	} else {
 		return NewTreeAlreadyExistError(fmt.Sprintf("Hash %s already exists", serialized.Hash))
 	}
+}
+
+func TypeByHash(path string, hash string, reader FileReader, fileFormatter GitFileFormatter) (GitObjectType, error) {
+	dir, fileName := BlobDirWithFileName(hash)
+	if !Exists(path + dir + "/" + fileName) {
+		return "", errors.New(fmt.Sprintf("Object with hash %s doesn't exist", hash))
+	}
+	data, err := reader(path + dir + "/" + fileName)
+	if err != nil {
+		return "", err
+	}
+	deser, err := fileFormatter.Deserialize(data)
+	if err != nil {
+		return "", err
+	}
+	return deser.objType, nil
 }
 
 //Git uses first two hash characters as a directory

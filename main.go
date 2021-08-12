@@ -198,10 +198,7 @@ func main() {
 				reader,
 			)
 			if err != nil {
-				fmt.Printf(
-					"Error serializing a commit object %s",
-					err.Error(),
-				)
+				fmt.Println(err.Error())
 				return
 			} else {
 				err := repo.Save(ser, objPath)

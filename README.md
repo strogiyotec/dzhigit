@@ -2,7 +2,7 @@
 Git implementation using Golang 
 
 ## Motivation
-I am using git in a daily basics but know nothing about the internal datastructures used by git. It took Linus a few weeks to implement , how many months it will take me ? Will see 
+I am using git in a daily basics but know nothing about the internal data structures used by git. It took Linus a few weeks to implement git , how many months it will take me ? Will see...
 
 ## TODO
 1. add 

@@ -35,12 +35,6 @@ type TreeAlreadyExistError struct {
 	message string
 }
 
-func NewTreeAlreadyExistError(message string) *TreeAlreadyExistError {
-	return &TreeAlreadyExistError{
-		message: message,
-	}
-}
-
 type DefaultGitFileFormatter struct {
 }
 
@@ -50,12 +44,42 @@ type DeserializedGitObject struct {
 }
 
 type SerializedGitObject struct {
-	Hash    string
+	Hash    Hash
 	content []byte
+}
+
+type Hash string
+
+func NewHash(hash string) (Hash, error) {
+	if len(hash) != sha1.Size*2 {
+		return "",
+			errors.New(
+				fmt.Sprintf(
+					"Wrong hash length ,should be %d, got %d",
+					sha1.Size*2,
+					len(hash),
+				),
+			)
+	}
+	return Hash(hash), nil
+}
+
+func (h Hash) Dir() string {
+	return string(h)[0:2]
+}
+
+func (h Hash) FileName() string {
+	return string(h)[2:]
 }
 
 func (err *TreeAlreadyExistError) Error() string {
 	return err.message
+}
+
+func NewTreeAlreadyExistError(message string) *TreeAlreadyExistError {
+	return &TreeAlreadyExistError{
+		message: message,
+	}
 }
 
 func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitObject, error) {
@@ -79,16 +103,15 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 		return nil, err
 	}
 	return &SerializedGitObject{
-		Hash:    fmt.Sprintf("%x", hash),
+		Hash:    Hash(fmt.Sprintf("%x", hash)),
 		content: zipped,
 	}, nil
 }
 func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path string) error {
-	hashDir, fileName := BlobDirWithFileName(serialized.Hash)
-	fullPath := path + hashDir
+	fullPath := path + serialized.Hash.Dir()
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		os.Mkdir(fullPath, 0755)
-		file, err := os.Create(fullPath + "/" + fileName)
+		file, err := os.Create(fullPath + "/" + serialized.Hash.FileName())
 		if err != nil {
 			return err
 		}
@@ -100,16 +123,26 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path s
 		}
 		return writer.Flush()
 	} else {
-		return NewTreeAlreadyExistError(fmt.Sprintf("Hash %s already exists", serialized.Hash))
+		return NewTreeAlreadyExistError(
+			fmt.Sprintf(
+				"Hash %s already exists",
+				serialized.Hash,
+			),
+		)
 	}
 }
 
-func TypeByHash(path string, hash string, reader FileReader, fileFormatter GitFileFormatter) (GitObjectType, error) {
-	dir, fileName := BlobDirWithFileName(hash)
-	if !Exists(path + dir + "/" + fileName) {
+//Get type of a object by given hash
+func TypeByHash(
+	path string,
+	hash Hash,
+	reader FileReader,
+	fileFormatter GitFileFormatter,
+) (GitObjectType, error) {
+	if !Exists(path + hash.Dir() + "/" + hash.FileName()) {
 		return "", errors.New(fmt.Sprintf("Object with hash %s doesn't exist", hash))
 	}
-	data, err := reader(path + dir + "/" + fileName)
+	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
 	if err != nil {
 		return "", err
 	}
@@ -118,13 +151,6 @@ func TypeByHash(path string, hash string, reader FileReader, fileFormatter GitFi
 		return "", err
 	}
 	return deser.objType, nil
-}
-
-//Git uses first two hash characters as a directory
-//in order to decrease amount of files per directory
-//some OS have limitations on amount of files per dir
-func BlobDirWithFileName(hash string) (string, string) {
-	return hash[0:2], hash[2:]
 }
 
 func newDeserializedObj(content string) (*DeserializedGitObject, error) {

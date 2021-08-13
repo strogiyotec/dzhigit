@@ -27,12 +27,12 @@ type User struct {
 }
 
 type Commit struct {
-	treeHash   string //hash of a tree object
+	treeHash   repository.Hash //hash of a tree object
 	message    string
-	parentHash string //hash of a parent commit may be null
+	parentHash repository.Hash //hash of a parent commit may be null
 }
 
-func NewCommit(hash, message, parent string) *Commit {
+func NewCommit(hash repository.Hash, message string, parent repository.Hash) *Commit {
 	return &Commit{
 		treeHash:   hash,
 		message:    message,
@@ -176,7 +176,7 @@ func createTreeEntry(
 
 //string that shows how a reference to a tree is stored inside of a tree file
 //TODO: can we unite it with Index Entry Blob String ?
-func treeLine(hash, dir string) string {
+func treeLine(hash repository.Hash, dir string) string {
 	return fmt.Sprintf("040000 tree %s\t%s\n", hash, dir)
 }
 
@@ -197,16 +197,15 @@ func WriteTree(
 }
 
 func GitCat(
-	hash string,
+	hash repository.Hash,
 	fileFormatter repository.GitFileFormatter,
 	path string,
 	reader repository.FileReader,
 ) (*repository.DeserializedGitObject, error) {
-	dir, fileName := repository.BlobDirWithFileName(hash)
-	if !repository.Exists(path + dir + "/" + fileName) {
+	if !repository.Exists(path + hash.Dir() + "/" + hash.FileName()) {
 		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
 	}
-	data, err := reader(path + dir + "/" + fileName)
+	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
 	if err != nil {
 		return nil, err
 	}

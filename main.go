@@ -84,7 +84,12 @@ func main() {
 			}
 			gitFile := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(path)
-			deser, err := cli.GitCat(cli.Git.CatFile.Hash, gitFile, objPath, reader)
+			hash, err := repository.NewHash(cli.Git.CatFile.Hash)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			deser, err := cli.GitCat(hash, gitFile, objPath, reader)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -100,8 +105,18 @@ func main() {
 			}
 			objPath := repository.ObjPath(gitRepoPath)
 			indexParams := cli.Git.UpdateIndex
-			//TODO: check if already exists
-			index, err := repository.NewIndex(indexParams.File, indexParams.Mode, indexParams.Hash, objPath)
+			//TODO: check if index already exists
+			mode, err := repository.AsMode(indexParams.Mode)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			hash, err := repository.NewHash(indexParams.Hash)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			index, err := repository.NewIndex(indexParams.File, mode, hash, objPath)
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {
@@ -182,10 +197,23 @@ func main() {
 				return
 			}
 			time := cli.CurrentTime()
+			treeHash, err := repository.NewHash(cli.Git.CommitTree.Hash)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			var parentHash repository.Hash
+			if len(cli.Git.CommitTree.Parent) != 0 {
+				parentHash, err = repository.NewHash(cli.Git.CommitTree.Parent)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+			}
 			commit := cli.NewCommit(
-				cli.Git.CommitTree.Hash,
+				treeHash,
 				cli.Git.CommitTree.Message,
-				cli.Git.CommitTree.Parent,
+				parentHash,
 			)
 			repo := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(gitRepoPath)

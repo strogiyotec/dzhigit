@@ -8,13 +8,13 @@ I am using git in a daily basics but know nothing about the internal datastructu
 1. add 
 2. [X] cat-file 
 3. checkout 
-4. commit-tree
+4. [X] commit-tree
 5. [X] hash-object 
-6. init 
+6. [X] init 
 7. log 
 8. [X] ls-tree 
-9. merge 
-10. rebase 
+9. merge - To consider
+10. rebase - To consider
 11. rev-parse 
 12. rm 
 13. show-ref 

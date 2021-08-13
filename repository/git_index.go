@@ -40,7 +40,7 @@ type IndexEntry struct {
 	mode             Mode
 	creationTime     int64
 	modificationTime int64
-	hash             string
+	hash             Hash
 }
 
 func (entry IndexEntry) PathParts() []string {
@@ -57,16 +57,11 @@ func (entry IndexEntry) Depth() int {
 //plainMode - the files' type
 //hash - the hash of this file to index
 //repoPath - path to repository
-func NewIndex(file, plainMode, hash, repoPath string) (*IndexEntry, error) {
+func NewIndex(file string, mode Mode, hash Hash, repoPath string) (*IndexEntry, error) {
 	if !Exists(file) {
 		return nil, errors.New(fmt.Sprintf("File %s doesn't exist", file))
 	}
-	mode, err := AsMode(plainMode)
-	if err != nil {
-		return nil, err
-	}
-	dir, fileName := BlobDirWithFileName(hash)
-	if !Exists(repoPath + dir + "/" + fileName) {
+	if !Exists(repoPath + hash.Dir() + "/" + hash.FileName()) {
 		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
 	}
 	modeTime, crTime, err := getTimes(file)
@@ -104,7 +99,10 @@ func ParseLineToIndex(line string) (*IndexEntry, error) {
 		return nil, errors.New("Invalid creation time, long expected ")
 	}
 	modTime, err := strconv.ParseInt(parts[2], 10, 64)
-	hash := parts[3]
+	hash, err := NewHash(parts[3])
+	if err != nil {
+		return nil, err
+	}
 	path := parts[4]
 	return &IndexEntry{
 		mode:             mode,

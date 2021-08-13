@@ -44,15 +44,3 @@ func Test_asGitObjectType(t *testing.T) {
 		t.Fatal("Should not parse invalid git object type")
 	}
 }
-
-func TestBlobDirWithFileName(t *testing.T) {
-	hash := "drfile"
-	dirPart, fileName := BlobDirWithFileName(hash)
-	if dirPart != "dr" {
-		t.Errorf("Wrong dir path expected %s, got %s", "dr", dirPart)
-	}
-	if fileName != "file" {
-		t.Errorf("Wrong file name expected %s, got %s", "file", fileName)
-	}
-
-}

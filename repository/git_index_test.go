@@ -30,7 +30,7 @@ func TestNewIndex(t *testing.T) {
 	}
 	//save it
 	err = gitFile.Save(serialized, dir)
-	index, err := NewIndex(file.Name(), string(FILE), serialized.Hash, dir)
+	index, err := NewIndex(file.Name(), FILE, serialized.Hash, dir)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

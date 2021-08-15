@@ -27,6 +27,7 @@ func Test_SerializeAndDeserialize(t *testing.T) {
 	if content != deserialized.Content {
 		t.Fatalf("Wrong content , expected '%s' , got '%s'", content, deserialized.Content)
 	}
+
 }
 
 func Test_header(t *testing.T) {
@@ -65,6 +66,10 @@ func TestNewHash(t *testing.T) {
 		t.Errorf("Wrong dir from hash, given %s, expected %s", hash.Dir(), predefinedHash[0:2])
 	}
 	if hash.FileName() != "0af1dd47d543b2166440b83bbf0ed0235173d8" {
-		t.Errorf("Wrong filename from hash, given %s, expected %s", hash.FileName(), predefinedHash[2:])
+		t.Errorf(
+			"Wrong filename from hash, given %s, expected %s",
+			hash.FileName(),
+			predefinedHash[2:],
+		)
 	}
 }

@@ -43,7 +43,7 @@ func main() {
 			content, err := ioutil.ReadFile(cli.Git.HashObject.File)
 			if err != nil {
 				fmt.Printf(
-					"Error during reading file for hashing %s ",
+					"Error during reading file for hashing\n %s ",
 					err.Error(),
 				)
 				return
@@ -157,13 +157,13 @@ func main() {
 				return
 			}
 			indexPath := repository.IndexPath(gitRepoPath)
-			content, err := ioutil.ReadFile(indexPath)
+			indexContent, err := ioutil.ReadFile(indexPath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 			objPath := repository.ObjPath(gitRepoPath)
-			lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+			lines := strings.Split(strings.TrimSpace(string(indexContent)), "\n")
 			tree, err := cli.WriteTree(
 				lines,
 				objPath,
@@ -240,6 +240,36 @@ func main() {
 					fmt.Println(ser.Hash)
 				}
 			}
+		}
+	case "update-ref <name> <hash>":
+		{
+			options := cli.Git.UpdateRef
+			formatter := repository.DefaultGitFileFormatter{}
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			objPath := repository.ObjPath(gitRepoPath)
+			treeHash, err := repository.NewHash(options.Hash)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			headsPath := repository.HeadsPath(gitRepoPath)
+			f, err := os.OpenFile(headsPath+options.Name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			err = cli.UpdateRef(treeHash, f, objPath, reader, &formatter)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			} else {
+				fmt.Printf("Branch %s was created", options.Name)
+			}
+
 		}
 	default:
 		fmt.Println("Default")

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -57,6 +58,28 @@ func NewUser(content []byte) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func UpdateRef(
+	hash repository.Hash,
+	writer io.Writer,
+	path string,
+	reader repository.FileReader,
+	formatter repository.GitFileFormatter,
+) error {
+	objType, err := repository.TypeByHash(path, hash, reader, formatter)
+	if err != nil {
+		return err
+	}
+	if objType != repository.TREE {
+		return errors.New(
+			fmt.Sprintf(
+				"Wrong object type 'tree' expected, got %s", objType,
+			),
+		)
+	}
+	_, err = writer.Write([]byte(hash))
+	return err
 }
 
 func CommitTree(

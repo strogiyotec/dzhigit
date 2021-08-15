@@ -19,6 +19,14 @@ const (
 
 const IndexParts = 5
 
+type IndexEntry struct {
+	path             string
+	mode             Mode
+	creationTime     int64
+	modificationTime int64
+	hash             Hash
+}
+
 func AsMode(mode string) (Mode, error) {
 	switch mode {
 	case "100644":
@@ -35,14 +43,6 @@ func Add(entry IndexEntry, writer io.Writer) error {
 	return err
 }
 
-type IndexEntry struct {
-	path             string
-	mode             Mode
-	creationTime     int64
-	modificationTime int64
-	hash             Hash
-}
-
 func (entry IndexEntry) PathParts() []string {
 	return strings.Split(entry.path, string(os.PathSeparator))
 }
@@ -57,7 +57,8 @@ func (entry IndexEntry) Depth() int {
 //plainMode - the files' type
 //hash - the hash of this file to index
 //repoPath - path to repository
-func NewIndex(file string, mode Mode, hash Hash, repoPath string) (*IndexEntry, error) {
+func NewIndex(
+	file string, mode Mode, hash Hash, repoPath string) (*IndexEntry, error) {
 	if !Exists(file) {
 		return nil, errors.New(fmt.Sprintf("File %s doesn't exist", file))
 	}

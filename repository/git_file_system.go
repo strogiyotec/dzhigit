@@ -7,7 +7,8 @@ import (
 
 const (
 	Objects     = "/objects/"
-	Refs        = "/refs/"
+	Refs        = "/refs"
+	Heads       = "/heads/"
 	Head        = "Head"
 	Config      = "/config.json"
 	Description = "Description"
@@ -17,6 +18,10 @@ const (
 func DefaultPath() string {
 	path, _ := os.Getwd()
 	return path + "/.dzhigit"
+}
+
+func HeadsPath(path string) string {
+	return path + Refs + Heads
 }
 
 func ConfigPath(path string) string {
@@ -61,6 +66,10 @@ func initRepo(path string) error {
 	}
 	//Create Refs dir
 	err = os.Mkdir(path+Refs, 0755)
+	if err != nil {
+		return nil
+	}
+	err = os.Mkdir(path+Refs+Heads, 0755)
 	if err != nil {
 		return nil
 	}

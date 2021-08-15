@@ -28,4 +28,8 @@ var Git struct {
 		Parent  string ` help:"hash of a parent commit" short:"p" default:"" `
 		Hash    string `arg name:"hash" help:"hash of a tree object" `
 	} `cmd help:"Create a commit object"`
+	UpdateRef struct {
+		Name string `help:"Name of a branch" arg name:"name"`
+		Hash string `help:"Hash of a tree object" arg name:"hash"`
+	} `cmd help:"Create a new branch"`
 }

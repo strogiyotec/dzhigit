@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"os"
 	"testing"
+
+	"github.com/strogiyotec/dzhigit/fakes"
+	"github.com/strogiyotec/dzhigit/repository"
 )
 
 func TestNewUser(t *testing.T) {
@@ -15,5 +19,22 @@ func TestNewUser(t *testing.T) {
 	}
 	if user.Name != "Almas" {
 		t.Fatal("Wrong name for deserialized user")
+	}
+}
+
+func TestWriteTree(t *testing.T) {
+	dir, err := fakes.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	formatter := repository.DefaultGitFileFormatter{}
+	entries, err := fakes.FakeEntries(formatter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := fakes.FakeFiles(dir, len(entries))
+	if err != nil {
+		t.Fatal(err)
 	}
 }

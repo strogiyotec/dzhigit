@@ -21,6 +21,7 @@ I am using git in a daily basics but know nothing about the internal data struct
 14. tag
 15. [X] index
 16. [X] write-tree
+17. [ ] update-ref
     
 ## How it works
 ### Blobs

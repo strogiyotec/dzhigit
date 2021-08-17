@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/strogiyotec/dzhigit/fakes"
 	"github.com/strogiyotec/dzhigit/repository"
@@ -37,7 +38,7 @@ func TestWriteTree(t *testing.T) {
 	entries, err := fakes.FakeEntries(formatter)
 	for _, entry := range entries {
 		err = formatter.Save(&entry, repository.ObjPath(gitDir))
-		if err != nil{
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -72,5 +73,48 @@ func TestWriteTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Tree hash is %s", tree.Hash)
+	objType, err := repository.TypeByHash(objPath, tree.Hash, repository.Reader, &formatter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objType != repository.TREE {
+		t.Fatalf(fmt.Sprintf("Wrong object type, 'tree' expected, got %s", objType))
+	}
+
+}
+
+func Test_createCommitTree(t *testing.T) {
+	treeHash, err := repository.GenerateHash([]byte("Tree Hash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentHash, err := repository.GenerateHash([]byte("Parent Hash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := Commit{
+		treeHash:   repository.Hash(treeHash),
+		message:    "New Commit",
+		parentHash: repository.Hash(parentHash),
+	}
+	user := User{
+		Name:  "Almas",
+		Email: "almas337519@gmail.com",
+	}
+	time := Time{
+		zone:        "PDT",
+		unixSeconds: time.Now().Unix(),
+	}
+	formatter := repository.DefaultGitFileFormatter{}
+	commitObj, err := createCommitObject(commit, user, time, &formatter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deser, err := formatter.Deserialize(commitObj.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deser.ObjType != repository.COMMIT {
+		t.Fatalf(fmt.Sprintf("Wrong object type, 'commit expected', got %s", deser.ObjType))
+	}
 }

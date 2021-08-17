@@ -12,10 +12,6 @@ import (
 	"github.com/strogiyotec/dzhigit/repository"
 )
 
-var reader repository.FileReader = func(path string) ([]byte, error) {
-	return ioutil.ReadFile(path)
-}
-
 func main() {
 	ctx := kong.Parse(&cli.Git)
 	switch ctx.Command() {
@@ -89,7 +85,7 @@ func main() {
 				fmt.Println(err.Error())
 				return
 			}
-			deser, err := cli.GitCat(hash, gitFile, objPath, reader)
+			deser, err := cli.GitCat(hash, gitFile, objPath, repository.Reader)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -223,7 +219,7 @@ func main() {
 				objPath,
 				*user,
 				repo,
-				reader,
+				repository.Reader,
 			)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -262,7 +258,7 @@ func main() {
 				fmt.Println(err.Error())
 				return
 			}
-			err = cli.UpdateRef(treeHash, f, objPath, reader, &formatter)
+			err = cli.UpdateRef(treeHash, f, objPath, repository.Reader, &formatter)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

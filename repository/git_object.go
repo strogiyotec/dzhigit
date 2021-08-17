@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +26,11 @@ const (
 //use first class function to improve testability
 type FileReader func(path string) ([]byte, error)
 
+//default reader
+var Reader FileReader = func(path string) ([]byte, error) {
+	return ioutil.ReadFile(path)
+}
+
 type GitFileFormatter interface {
 	Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error)
 	Deserialize(data []byte) (*DeserializedGitObject, error)
@@ -39,13 +45,13 @@ type DefaultGitFileFormatter struct {
 }
 
 type DeserializedGitObject struct {
-	objType GitObjectType
+	ObjType GitObjectType
 	Content string
 }
 
 type SerializedGitObject struct {
 	Hash    Hash
-	content []byte
+	Content []byte
 }
 
 type Hash string
@@ -94,7 +100,7 @@ func (obj *DefaultGitFileFormatter) Deserialize(data []byte) (*DeserializedGitOb
 func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error) {
 	header := header(data, objType)
 	result := append(header, data...)
-	hash, err := generateHash(result)
+	hash, err := GenerateHash(result)
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +109,8 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 		return nil, err
 	}
 	return &SerializedGitObject{
-		Hash:    Hash(fmt.Sprintf("%x", hash)),
-		content: zipped,
+		Hash:    Hash(hash),
+		Content: zipped,
 	}, nil
 }
 
@@ -120,7 +126,7 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, objPat
 	}
 	defer file.Close()
 	writer := bufio.NewWriter(file)
-	_, err = writer.Write(serialized.content)
+	_, err = writer.Write(serialized.Content)
 	if err != nil {
 		return err
 	}
@@ -129,15 +135,15 @@ func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, objPat
 
 //Get type of a object by given hash
 func TypeByHash(
-	path string,
+	objPath string,
 	hash Hash,
 	reader FileReader,
 	fileFormatter GitFileFormatter,
 ) (GitObjectType, error) {
-	if !Exists(path + hash.Dir() + "/" + hash.FileName()) {
+	if !Exists(objPath + hash.Dir() + "/" + hash.FileName()) {
 		return "", errors.New(fmt.Sprintf("Object with hash %s doesn't exist", hash))
 	}
-	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
+	data, err := reader(objPath + hash.Dir() + "/" + hash.FileName())
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +151,7 @@ func TypeByHash(
 	if err != nil {
 		return "", err
 	}
-	return deser.objType, nil
+	return deser.ObjType, nil
 }
 
 func newDeserializedObj(content string) (*DeserializedGitObject, error) {
@@ -171,7 +177,7 @@ func newDeserializedObj(content string) (*DeserializedGitObject, error) {
 			)
 	}
 	return &DeserializedGitObject{
-		objType: objType,
+		ObjType: objType,
 		Content: content[nullIndex+1:],
 	}, nil
 }
@@ -202,13 +208,14 @@ func zipped(data []byte) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func generateHash(data []byte) ([]byte, error) {
+func GenerateHash(data []byte) (string, error) {
 	hash := sha1.New()
 	_, err := hash.Write(data)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return hash.Sum(nil), nil
+	hashStr := fmt.Sprintf("%x", hash.Sum(nil))
+	return hashStr, nil
 
 }
 

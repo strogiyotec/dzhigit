@@ -33,7 +33,11 @@ type Commit struct {
 	parentHash repository.Hash //hash of a parent commit may be null
 }
 
-func NewCommit(hash repository.Hash, message string, parent repository.Hash) *Commit {
+func NewCommit(
+	hash repository.Hash,
+	message string,
+	parent repository.Hash,
+) *Commit {
 	return &Commit{
 		treeHash:   hash,
 		message:    message,
@@ -63,11 +67,11 @@ func NewUser(content []byte) (*User, error) {
 func UpdateRef(
 	hash repository.Hash,
 	writer io.Writer,
-	path string,
+	objPath string,
 	reader repository.FileReader,
 	formatter repository.GitFileFormatter,
 ) error {
-	objType, err := repository.TypeByHash(path, hash, reader, formatter)
+	objType, err := repository.TypeByHash(objPath, hash, reader, formatter)
 	if err != nil {
 		return err
 	}
@@ -82,6 +86,9 @@ func UpdateRef(
 	return err
 }
 
+//Create a commit object
+//This method does a validation and then delegates
+//an actual commit creation to #createCommitTree
 func CommitTree(
 	commit Commit,
 	time Time,
@@ -98,13 +105,11 @@ func CommitTree(
 		return nil,
 			errors.New(
 				fmt.Sprintf(
-					"Given hash %s is not a tree object",
+					"Object with given hash '%s' is not a tree object",
 					commit.treeHash,
 				),
 			)
 	}
-	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("tree %s\n", commit.treeHash))
 	if len(commit.parentHash) != 0 {
 		tp, err := repository.TypeByHash(path, commit.parentHash, reader, fileFormatter)
 		if err != nil {
@@ -119,6 +124,24 @@ func CommitTree(
 					),
 				)
 		}
+	}
+	return createCommitObject(
+		commit,
+		user,
+		time,
+		fileFormatter,
+	)
+}
+
+func createCommitObject(
+	commit Commit,
+	user User,
+	time Time,
+	formatter repository.GitFileFormatter,
+) (*repository.SerializedGitObject, error) {
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("tree %s\n", commit.treeHash))
+	if len(commit.parentHash) != 0 {
 		builder.WriteString(fmt.Sprintf("parent %s\n", commit.parentHash))
 	}
 	builder.WriteString(
@@ -141,7 +164,7 @@ func CommitTree(
 	)
 	builder.WriteString("\n")
 	builder.WriteString(fmt.Sprintf("%s\n", commit.message))
-	return fileFormatter.Serialize([]byte(builder.String()), repository.COMMIT)
+	return formatter.Serialize([]byte(builder.String()), repository.COMMIT)
 }
 
 //TODO: write a test

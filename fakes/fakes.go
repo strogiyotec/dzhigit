@@ -1,16 +1,22 @@
 package fakes
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 
 	"github.com/strogiyotec/dzhigit/repository"
 )
 
-func FakeIndexEntries(entries []repository.SerializedGitObject, repo string) ([]repository.IndexEntry, error) {
-	indexEntries := []repository.IndexEntry{}
-	for _, entry := range entries {
-		index, err := repository.NewIndex("first", repository.FILE, entry.Hash, repo)
+func FakeIndexEntries(entries []repository.SerializedGitObject, files []os.File, objPath string) ([]repository.IndexEntry, error) {
+	if len(entries) != len(files) {
+		return nil, errors.New("the size of entries and files has to be the same")
+	}
+	var indexEntries []repository.IndexEntry
+	for i := 0; i < len(entries); i++ {
+		file := files[i]
+		entry := entries[i]
+		index, err := repository.NewIndex(file.Name(), repository.FILE, entry.Hash, objPath)
 		if err != nil {
 			return nil, err
 		}
@@ -20,8 +26,12 @@ func FakeIndexEntries(entries []repository.SerializedGitObject, repo string) ([]
 }
 
 func TempDir() (string, error) {
-	dir := "/tmp/dzhigit" + repository.Objects
+	dir := "/tmp/dzhigit"
 	err := os.MkdirAll(dir, 0777)
+	if err != nil {
+		return "", err
+	}
+	err = repository.Init(dir + "/.dzhigit")
 	if err != nil {
 		return "", err
 	}

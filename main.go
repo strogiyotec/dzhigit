@@ -162,8 +162,8 @@ func main() {
 				fmt.Println(err.Error())
 				return
 			}
-			objPath := repository.ObjPath(gitRepoPath)
 			lines := strings.Split(strings.TrimSpace(string(indexContent)), "\n")
+			objPath := repository.ObjPath(gitRepoPath)
 			tree, err := cli.WriteTree(
 				lines,
 				objPath,

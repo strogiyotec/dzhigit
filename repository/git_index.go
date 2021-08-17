@@ -56,14 +56,18 @@ func (entry IndexEntry) Depth() int {
 //file - the file's name to index
 //plainMode - the files' type
 //hash - the hash of this file to index
-//repoPath - path to repository
+//objPath - path to object repository
 func NewIndex(
-	file string, mode Mode, hash Hash, repoPath string) (*IndexEntry, error) {
+	file string,
+	mode Mode,
+	hash Hash,
+	objectPath string,
+) (*IndexEntry, error) {
 	if !Exists(file) {
 		return nil, errors.New(fmt.Sprintf("File %s doesn't exist", file))
 	}
-	if !Exists(repoPath + hash.Dir() + "/" + hash.FileName()) {
-		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
+	if !Exists(objectPath + hash.Dir() + "/" + hash.FileName()) {
+		return nil, errors.New(fmt.Sprintf("Blob with hash %s doesn't exist", hash))
 	}
 	modeTime, crTime, err := getTimes(file)
 	if err != nil {

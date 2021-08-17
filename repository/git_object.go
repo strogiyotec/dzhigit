@@ -107,29 +107,24 @@ func (obj *DefaultGitFileFormatter) Serialize(data []byte, objType GitObjectType
 		content: zipped,
 	}, nil
 }
-func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, path string) error {
-	fullPath := path + serialized.Hash.Dir()
+
+func (obj *DefaultGitFileFormatter) Save(serialized *SerializedGitObject, objPath string) error {
+	fullPath := objPath + serialized.Hash.Dir()
+	//dir may already exist
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		os.Mkdir(fullPath, 0755)
-		file, err := os.Create(fullPath + "/" + serialized.Hash.FileName())
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		writer := bufio.NewWriter(file)
-		_, err = writer.Write(serialized.content)
-		if err != nil {
-			return err
-		}
-		return writer.Flush()
-	} else {
-		return NewTreeAlreadyExistError(
-			fmt.Sprintf(
-				"Hash %s already exists",
-				serialized.Hash,
-			),
-		)
 	}
+	file, err := os.Create(fullPath + "/" + serialized.Hash.FileName())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := bufio.NewWriter(file)
+	_, err = writer.Write(serialized.content)
+	if err != nil {
+		return err
+	}
+	return writer.Flush()
 }
 
 //Get type of a object by given hash

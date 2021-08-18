@@ -15,18 +15,15 @@ import (
 func main() {
 	ctx := kong.Parse(&cli.Git)
 	switch ctx.Command() {
-	case "add <files>":
-		path := repository.DefaultPath()
-		command, err := cli.NewGitAdd(cli.Git.Add.Files, path)
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			command.Add()
-		}
 	case "init":
 		{
 			path := repository.DefaultPath()
-			err := repository.Init(path)
+			json, err := cli.DefaultGitUserAsJson()
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			err = repository.Init(path, json)
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {
@@ -265,7 +262,38 @@ func main() {
 			} else {
 				fmt.Printf("Branch %s was created", options.Name)
 			}
-
+		}
+	case "checkout <branch>":
+		{
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			options := cli.Git.Checkout
+			err := cli.Checkout(
+				gitRepoPath,
+				options.Branch,
+			)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Printf("Branch %s was checkout\n", options.Branch)
+		}
+	case "branch":
+		{
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			branch, err := cli.Branch(gitRepoPath)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Printf("* %s\n", branch)
 		}
 	default:
 		fmt.Println("Default")

@@ -10,7 +10,7 @@ var Git struct {
 		Write bool   `help:"Save the object" short:"w"`
 		Type  string `help:"Type of object" enum:"blob,tree" default:"blob"`
 		File  string `arg name:"file" help:"path to file to generate hash from" type :"path"`
-	} `cmd help:"Get the hash of an object"`
+	} `cmd help:"Creates a hash of a given file"`
 	CatFile struct {
 		Hash string `arg name:"hash" help:"object hash"`
 	} `cmd help:"Print the content of a blob by hash"`
@@ -32,4 +32,9 @@ var Git struct {
 		Name string `help:"Name of a branch" arg name:"name"`
 		Hash string `help:"Hash of a tree object" arg name:"hash"`
 	} `cmd help:"Create a new branch"`
+	Checkout struct {
+		Branch string `arg name:"branch" help:"Name of a branch to checkout"`
+	} `cmd help:"Checkout a given branch"`
+	Branch struct {
+	} `cmd help:"Print current branch"`
 }

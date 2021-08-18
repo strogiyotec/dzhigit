@@ -10,12 +10,8 @@ import (
 	"time"
 
 	"github.com/strogiyotec/dzhigit/repository"
+	"github.com/tcnksm/go-gitconfig"
 )
-
-type GitAdd struct {
-	files     []string
-	reposPath string
-}
 
 type Time struct {
 	zone        string
@@ -31,6 +27,45 @@ type Commit struct {
 	treeHash   repository.Hash //hash of a tree object
 	message    string
 	parentHash repository.Hash //hash of a parent commit may be null
+}
+
+func Branch(gitRepoPath string) (string, error) {
+	headPath := repository.HeadPath(gitRepoPath)
+	content, err := os.ReadFile(headPath)
+	if err != nil {
+		return "", errors.New(
+			`There is no branch in this repo,
+            to create one use 'dzhigit update-ref'
+            and then check it out using 'dzhigit checkout' `,
+		)
+	}
+	branch := branchNameFromHead(string(content))
+	return branch, nil
+}
+
+//TODO:rewrite files content according to tree object of a given branch
+func Checkout(
+	gitRepoPath string,
+	branchName string,
+) error {
+	headsPath := repository.HeadsPath(gitRepoPath)
+	pathToBranch := headsPath + branchName
+	if !repository.Exists(pathToBranch) {
+		return errors.New(
+			fmt.Sprintf(
+				"error branch with name %s doesn't exist",
+				branchName,
+			),
+		)
+	}
+	head := repository.HeadPath(gitRepoPath)
+	f, err := os.OpenFile(head, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	f.Write([]byte(headContent(branchName)))
+	return nil
 }
 
 func NewCommit(
@@ -64,21 +99,40 @@ func NewUser(content []byte) (*User, error) {
 	return &user, nil
 }
 
+func DefaultGitUserAsJson() ([]byte, error) {
+	username, err := gitconfig.Username()
+	if err != nil {
+		return nil, err
+	}
+	email, err := gitconfig.Email()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(
+		User{
+			Name:  username,
+			Email: email,
+		},
+	)
+}
+
+//creates a new branch
 func UpdateRef(
-	hash repository.Hash,
-	writer io.Writer,
+	hash repository.Hash, //commit hash
+	writer io.Writer, //writer to save a hash into commit file
 	objPath string,
-	reader repository.FileReader,
+	reader repository.FileReader, //reader to read a hash
 	formatter repository.GitFileFormatter,
 ) error {
 	objType, err := repository.TypeByHash(objPath, hash, reader, formatter)
 	if err != nil {
 		return err
 	}
-	if objType != repository.TREE {
+	if objType != repository.COMMIT {
 		return errors.New(
 			fmt.Sprintf(
-				"Wrong object type 'tree' expected, got %s", objType,
+				"Wrong object type 'commit' expected, got %s",
+				objType,
 			),
 		)
 	}
@@ -133,6 +187,50 @@ func CommitTree(
 	)
 }
 
+//create a tree object from entries saved in index
+func WriteTree(
+	indexLines []string, //list of entries stored in index file
+	objPath string,
+	gitFormatter repository.GitFileFormatter,
+) (*repository.SerializedGitObject, error) {
+	var indexes []repository.IndexEntry
+	for _, line := range indexLines {
+		index, err := repository.ParseLineToIndex(line)
+		if err != nil {
+			return nil, err
+		}
+		indexes = append(indexes, *index)
+	}
+	return createTreeEntry(1, indexes, gitFormatter, objPath)
+}
+
+//cat object by given hash
+func GitCat(
+	hash repository.Hash,
+	fileFormatter repository.GitFileFormatter,
+	path string,
+	reader repository.FileReader,
+) (*repository.DeserializedGitObject, error) {
+	if !repository.Exists(path + hash.Dir() + "/" + hash.FileName()) {
+		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
+	}
+	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
+	if err != nil {
+		return nil, err
+	}
+	return fileFormatter.Deserialize(data)
+}
+
+//Adds a new entry into an index file
+func UpdateIndex(index repository.IndexEntry, indexPath string) error {
+	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return repository.Add(index, f)
+}
+
 func createCommitObject(
 	commit Commit,
 	user User,
@@ -167,7 +265,10 @@ func createCommitObject(
 	return formatter.Serialize([]byte(builder.String()), repository.COMMIT)
 }
 
-//TODO: write a test
+//string that shows how a reference to a tree is stored inside of a tree file
+func treeLine(hash repository.Hash, dir string) string {
+	return fmt.Sprintf("040000 tree %s\t%s\n", hash, dir)
+}
 func createTreeEntry(
 	level int,
 	indexes []repository.IndexEntry,
@@ -219,66 +320,13 @@ func createTreeEntry(
 	}
 	return tree, nil
 }
-
-//string that shows how a reference to a tree is stored inside of a tree file
-//TODO: can we unite it with Index Entry Blob String ?
-func treeLine(hash repository.Hash, dir string) string {
-	return fmt.Sprintf("040000 tree %s\t%s\n", hash, dir)
+func branchNameFromHead(head string) string {
+	parts := strings.Split(head, "/")
+	return parts[len(parts)-1]
 }
 
-func WriteTree(
-	indexLines []string,
-	objPath string,
-	gitFormatter repository.GitFileFormatter,
-) (*repository.SerializedGitObject, error) {
-	var indexes []repository.IndexEntry
-	for _, line := range indexLines {
-		index, err := repository.ParseLineToIndex(line)
-		if err != nil {
-			return nil, err
-		}
-		indexes = append(indexes, *index)
-	}
-	return createTreeEntry(1, indexes, gitFormatter, objPath)
-}
-
-func GitCat(
-	hash repository.Hash,
-	fileFormatter repository.GitFileFormatter,
-	path string,
-	reader repository.FileReader,
-) (*repository.DeserializedGitObject, error) {
-	if !repository.Exists(path + hash.Dir() + "/" + hash.FileName()) {
-		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
-	}
-	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
-	if err != nil {
-		return nil, err
-	}
-	return fileFormatter.Deserialize(data)
-}
-
-func UpdateIndex(index repository.IndexEntry, path string) error {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return repository.Add(index, f)
-}
-
-func NewGitAdd(files []string, repoPath string) (*GitAdd, error) {
-	if repository.Exists(repoPath) {
-		return &GitAdd{
-			files:     files,
-			reposPath: repoPath,
-		}, nil
-	} else {
-		return nil, errors.New("Can't add git files, repository doesn't exist ")
-	}
-}
-
-//Add git files
-func (command *GitAdd) Add() error {
-	return nil
+//content that will be stored in HEAD file
+//Example :refs: refs/heads/master
+func headContent(branchName string) string {
+	return fmt.Sprintf("refs: %s", repository.PathToBranch(branchName))
 }

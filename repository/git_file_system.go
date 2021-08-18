@@ -9,7 +9,7 @@ const (
 	Objects     = "/objects/"
 	Refs        = "/refs"
 	Heads       = "/heads/"
-	Head        = "Head"
+	Head        = "/HEAD"
 	Config      = "/config.json"
 	Description = "Description"
 	Index       = "/index"
@@ -18,6 +18,15 @@ const (
 func DefaultPath() string {
 	path, _ := os.Getwd()
 	return path + "/.dzhigit"
+}
+
+func PathToBranch(branchName string) string {
+	return Refs + Heads + branchName
+}
+
+//TODO:rename all path params to root
+func HeadPath(path string) string {
+	return path + Head
 }
 
 func HeadsPath(path string) string {
@@ -36,7 +45,7 @@ func ObjPath(path string) string {
 	return path + Objects
 }
 
-//Check if repository exists
+//Check if path exists
 func Exists(path string) bool {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return false
@@ -46,15 +55,15 @@ func Exists(path string) bool {
 }
 
 //create git repository, returns an error if already exists
-func Init(path string) error {
+func Init(path string, userJson []byte) error {
 	if !Exists(path) {
-		return initRepo(path)
+		return initRepo(path, userJson)
 	} else {
 		return errors.New("Dzhigit repository already exists")
 	}
 }
 
-func initRepo(path string) error {
+func initRepo(path string, userJson []byte) error {
 	err := os.Mkdir(path, 0755)
 	if err != nil {
 		return err
@@ -74,7 +83,12 @@ func initRepo(path string) error {
 		return nil
 	}
 	//Create Config
-	_, err = os.Create(path + Config)
+	config, err := os.Create(path + Config)
+	if err != nil {
+		return nil
+	}
+	defer config.Close()
+	_, err = config.Write(userJson)
 	if err != nil {
 		return nil
 	}

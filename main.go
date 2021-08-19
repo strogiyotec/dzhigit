@@ -98,7 +98,6 @@ func main() {
 			}
 			objPath := repository.ObjPath(gitRepoPath)
 			indexParams := cli.Git.UpdateIndex
-			//TODO: if file with hash already exists,override hash
 			mode, err := repository.AsMode(indexParams.Mode)
 			if err != nil {
 				fmt.Println(err.Error())

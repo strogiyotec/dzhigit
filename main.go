@@ -274,9 +274,13 @@ func main() {
 				return
 			}
 			options := cli.Git.Checkout
+			objPath := repository.ObjPath(gitRepoPath)
 			err := cli.Checkout(
 				gitRepoPath,
 				options.Branch,
+				objPath,
+				repository.Reader,
+				&repository.DefaultGitFileFormatter{},
 			)
 			if err != nil {
 				fmt.Println(err.Error())

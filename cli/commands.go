@@ -19,6 +19,21 @@ type Time struct {
 	unixSeconds int64
 }
 
+//how single entry in tree object is represented
+type treeEntry struct {
+	mode    repository.Mode
+	objType repository.GitObjectType
+	path    string
+	hash    repository.Hash
+}
+
+//tuple for recursive checkout
+//that contains a hash of a tree and a path that this tree represents
+type checkoutTuple struct {
+	treeHash repository.Hash
+	path     string
+}
+
 type User struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
@@ -28,6 +43,29 @@ type Commit struct {
 	treeHash   repository.Hash //hash of a tree object
 	message    string
 	parentHash repository.Hash //hash of a parent commit may be null
+}
+
+func newTreeEntry(line string) (*treeEntry, error) {
+	parts := strings.Split(line, "\\s+")
+	mode, err := repository.AsMode(parts[0])
+	if err != nil {
+		return nil, err
+	}
+	objType, err := repository.AsGitObjectType(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	hash, err := repository.NewHash(parts[2])
+	if err != nil {
+		return nil, err
+	}
+	path := parts[3]
+	return &treeEntry{
+		mode:    mode,
+		objType: objType,
+		hash:    hash,
+		path:    path,
+	}, nil
 }
 
 func Branch(gitRepoPath string) (string, error) {
@@ -48,16 +86,28 @@ func Branch(gitRepoPath string) (string, error) {
 func Checkout(
 	gitRepoPath string,
 	branchName string,
+	objPath string,
+	reader repository.FileReader,
+	formatter repository.GitFileFormatter,
 ) error {
 	headsPath := repository.HeadsPath(gitRepoPath)
 	pathToBranch := headsPath + branchName
 	if !repository.Exists(pathToBranch) {
 		return errors.New(
 			fmt.Sprintf(
-				"error branch with name %s doesn't exist",
+				"error branch with name '%s' doesn't exist",
 				branchName,
 			),
 		)
+	}
+	treeHash, err := treeHashFromBranch(pathToBranch, objPath, formatter, reader)
+	if err != nil {
+		return err
+	}
+	//TODO: test if it works
+	err = checkoutRecursively(treeHash, "", reader, objPath)
+	if err != nil {
+		return err
 	}
 	head := repository.HeadPath(gitRepoPath)
 	f, err := os.OpenFile(head, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
@@ -65,7 +115,60 @@ func Checkout(
 		return err
 	}
 	defer f.Close()
-	f.Write([]byte(headContent(branchName)))
+	_, err = f.Write([]byte(headContent(branchName)))
+	return err
+}
+
+func checkoutRecursively(
+	treeHash repository.Hash,
+	rootPath string,
+	reader repository.FileReader,
+	objPath string,
+) error {
+	//queue of inner trees
+	queue := []checkoutTuple{}
+	content, err := reader(treeHash.Path(objPath))
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		treeEntry, err := newTreeEntry(line)
+		if err != nil {
+			return err
+		}
+		//if tree then store in queue and proceed later
+		if treeEntry.objType == repository.TREE {
+			queue = append(
+				queue,
+				checkoutTuple{
+					treeHash: treeEntry.hash,
+					path:     treeEntry.path,
+				},
+			)
+		} else {
+			//else override content right away
+			data, err := reader(treeEntry.hash.Path(objPath))
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, tuple := range queue {
+		err := checkoutRecursively(
+			tuple.treeHash,
+			rootPath+tuple.path+"/",
+			reader,
+			objPath,
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -209,13 +312,13 @@ func WriteTree(
 func GitCat(
 	hash repository.Hash,
 	fileFormatter repository.GitFileFormatter,
-	path string,
+	objPath string,
 	reader repository.FileReader,
 ) (*repository.DeserializedGitObject, error) {
-	if !repository.Exists(path + hash.Dir() + "/" + hash.FileName()) {
+	if !repository.Exists(hash.Path(objPath)) {
 		return nil, errors.New(fmt.Sprintf("File with hash %s doesn't exist", hash))
 	}
-	data, err := reader(path + hash.Dir() + "/" + hash.FileName())
+	data, err := reader(hash.Path(objPath))
 	if err != nil {
 		return nil, err
 	}
@@ -262,6 +365,16 @@ func UpdateIndex(index repository.IndexEntry, indexPath string) error {
 	return err
 }
 
+// +----------------------------+
+// | Commit format line by line |
+// +----------------------------+
+// | tree hash                  |
+// | parent hash                |
+// | author                     |
+// | comitter                   |
+// | empty line                 |
+// | commit message             |
+// +----------------------------+
 func createCommitObject(
 	commit Commit,
 	user User,
@@ -356,8 +469,35 @@ func branchNameFromHead(head string) string {
 	return parts[len(parts)-1]
 }
 
+//TODO: introduce branch type ?
+func treeHashFromBranch(
+	pathToBranch string,
+	objPath string,
+	fileFormatter repository.GitFileFormatter,
+	reader repository.FileReader,
+) (repository.Hash, error) {
+	content, err := reader(pathToBranch)
+	if err != nil {
+		return "", err
+	}
+	commitHash, err := repository.NewHash(string(content))
+	if err != nil {
+		return "", err
+	}
+	content, err = reader(commitHash.Path(objPath))
+	if err != nil {
+		return "", err
+	}
+	treeParts := strings.Split(string(content), "\n")[0]
+	treeHash, err := repository.NewHash(strings.Split(treeParts, " ")[1])
+	if err != nil {
+		return "", err
+	}
+	return treeHash, nil
+}
+
 //content that will be stored in HEAD file
-//Example :refs: refs/heads/master
+//Example :"refs: refs/heads/master"
 func headContent(branchName string) string {
 	return fmt.Sprintf("refs: %s", repository.PathToBranch(branchName))
 }

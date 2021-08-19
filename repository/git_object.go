@@ -74,6 +74,11 @@ func (h Hash) Dir() string {
 	return string(h)[0:2]
 }
 
+//returns the whole directory to the file with given hash
+func (h Hash) Path(objPath string) string {
+	return objPath + h.Dir() + "/" + h.FileName()
+}
+
 func (h Hash) FileName() string {
 	return string(h)[2:]
 }

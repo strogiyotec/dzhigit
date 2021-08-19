@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -223,12 +224,42 @@ func GitCat(
 
 //Adds a new entry into an index file
 func UpdateIndex(index repository.IndexEntry, indexPath string) error {
-	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(
+		indexPath,
+		os.O_CREATE|os.O_RDWR,
+		0644,
+	)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return repository.Add(index, f)
+	builder := strings.Builder{}
+	s := bufio.NewScanner(f)
+	indexEmpty := true
+	foundDuplicate := false
+	for s.Scan() {
+		indexEmpty = false
+		text := s.Text()
+		parsedIndex, err := repository.ParseLineToIndex(text)
+		if err != nil {
+			return err
+		}
+		if index.Path() == parsedIndex.Path() {
+			foundDuplicate = true
+			builder.WriteString(index.String() + "\n")
+		} else {
+			builder.WriteString(parsedIndex.String() + "\n")
+		}
+	}
+	if indexEmpty || !foundDuplicate {
+		builder.WriteString(index.String() + "\n")
+	}
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write([]byte(builder.String()))
+	return err
 }
 
 func createCommitObject(

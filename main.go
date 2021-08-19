@@ -98,7 +98,7 @@ func main() {
 			}
 			objPath := repository.ObjPath(gitRepoPath)
 			indexParams := cli.Git.UpdateIndex
-			//TODO: check if hash already exists in index
+			//TODO: if file with hash already exists,override hash
 			mode, err := repository.AsMode(indexParams.Mode)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -118,7 +118,7 @@ func main() {
 				if err != nil {
 					fmt.Println(err.Error())
 				} else {
-					fmt.Printf("File %s was saved in index", indexParams.File)
+					fmt.Printf("File %s was saved in index\n", indexParams.File)
 				}
 			}
 		}
@@ -250,7 +250,11 @@ func main() {
 				return
 			}
 			headsPath := repository.HeadsPath(gitRepoPath)
-			f, err := os.OpenFile(headsPath+options.Name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+			f, err := os.OpenFile(
+				headsPath+options.Name,
+				os.O_RDWR|os.O_CREATE|os.O_TRUNC,
+				0755,
+			)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

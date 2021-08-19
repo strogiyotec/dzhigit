@@ -3,7 +3,6 @@ package repository
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -38,13 +37,12 @@ func AsMode(mode string) (Mode, error) {
 	}
 }
 
-func Add(entry IndexEntry, writer io.Writer) error {
-	_, err := writer.Write([]byte(entry.String() + "\n"))
-	return err
-}
-
 func (entry IndexEntry) PathParts() []string {
 	return strings.Split(entry.path, string(os.PathSeparator))
+}
+
+func (entry IndexEntry) Path() string {
+	return entry.path
 }
 
 //Get the depth of a file for given index

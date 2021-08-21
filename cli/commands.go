@@ -85,7 +85,7 @@ func Branch(gitRepoPath string) (string, error) {
 //TODO: get current branch(not the one we want to checkout)
 // get the tree , get the files from this tree
 //if file we want to checkout is not the same as in the current branch's tree
-//then through an error(it can be happen if unstaged changes exist in file)
+//then throw an error(it can be happen if unstaged changes exist in file)
 func Checkout(
 	gitRepoPath string,
 	branchName string,

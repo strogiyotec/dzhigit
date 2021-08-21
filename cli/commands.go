@@ -46,7 +46,7 @@ type Commit struct {
 }
 
 func newTreeEntry(line string) (*treeEntry, error) {
-	parts := strings.Split(line, "\\s+")
+	parts := strings.Fields(line)
 	mode, err := repository.AsMode(parts[0])
 	if err != nil {
 		return nil, err
@@ -82,7 +82,10 @@ func Branch(gitRepoPath string) (string, error) {
 	return branch, nil
 }
 
-//TODO:rewrite files content according to tree object of a given branch
+//TODO: get current branch(not the one we want to checkout)
+// get the tree , get the files from this tree
+//if file we want to checkout is not the same as in the current branch's tree
+//then through an error(it can be happen if unstaged changes exist in file)
 func Checkout(
 	gitRepoPath string,
 	branchName string,
@@ -104,8 +107,7 @@ func Checkout(
 	if err != nil {
 		return err
 	}
-	//TODO: test if it works
-	err = checkoutRecursively(treeHash, "", reader, objPath)
+	err = checkoutRecursively(treeHash, "", reader, objPath, formatter)
 	if err != nil {
 		return err
 	}
@@ -124,37 +126,48 @@ func checkoutRecursively(
 	rootPath string,
 	reader repository.FileReader,
 	objPath string,
+	formatter repository.GitFileFormatter,
 ) error {
 	//queue of inner trees
-	queue := []checkoutTuple{}
-	content, err := reader(treeHash.Path(objPath))
+	var queue []checkoutTuple
+	rawContent, err := reader(treeHash.Path(objPath))
 	if err != nil {
 		return err
 	}
-	lines := strings.Split(string(content), "\n")
+	treeObj, err := formatter.Deserialize(rawContent)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(treeObj.Content, "\n")
 	for _, line := range lines {
-		treeEntry, err := newTreeEntry(line)
-		if err != nil {
-			return err
-		}
-		//if tree then store in queue and proceed later
-		if treeEntry.objType == repository.TREE {
-			queue = append(
-				queue,
-				checkoutTuple{
-					treeHash: treeEntry.hash,
-					path:     treeEntry.path,
-				},
-			)
-		} else {
-			//else override content right away
-			data, err := reader(treeEntry.hash.Path(objPath))
+		if line != "" {
+			treeEntry, err := newTreeEntry(line)
 			if err != nil {
 				return err
 			}
-			err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
-			if err != nil {
-				return err
+			//if tree then store in queue and proceed later
+			if treeEntry.objType == repository.TREE {
+				queue = append(
+					queue,
+					checkoutTuple{
+						treeHash: treeEntry.hash,
+						path:     treeEntry.path,
+					},
+				)
+			} else {
+				//else override content right away
+				rawData, err := reader(treeEntry.hash.Path(objPath))
+				if err != nil {
+					return err
+				}
+				gitObj, err := formatter.Deserialize(rawData)
+				if err != nil {
+					return err
+				}
+				err = os.WriteFile(rootPath+treeEntry.path, []byte(gitObj.Content), 0755)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -164,6 +177,7 @@ func checkoutRecursively(
 			rootPath+tuple.path+"/",
 			reader,
 			objPath,
+			formatter,
 		)
 		if err != nil {
 			return err
@@ -488,7 +502,11 @@ func treeHashFromBranch(
 	if err != nil {
 		return "", err
 	}
-	treeParts := strings.Split(string(content), "\n")[0]
+	commitContent, err := fileFormatter.Deserialize(content)
+	if err != nil {
+		return "", err
+	}
+	treeParts := strings.Split(commitContent.Content, "\n")[0]
 	treeHash, err := repository.NewHash(strings.Split(treeParts, " ")[1])
 	if err != nil {
 		return "", err

@@ -14,6 +14,7 @@ type Mode string
 const (
 	FILE       Mode = "100644"
 	EXECUTABLE      = "100755"
+	DIR             = "04000"
 )
 
 const IndexParts = 5
@@ -32,8 +33,10 @@ func AsMode(mode string) (Mode, error) {
 		return FILE, nil
 	case "100755":
 		return EXECUTABLE, nil
+	case "040000":
+		return DIR, nil
 	default:
-		return "", errors.New("Invalid file mode ")
+		return "", errors.New(fmt.Sprintf("Invalid file mode '%s'", mode))
 	}
 }
 

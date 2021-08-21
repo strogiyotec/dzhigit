@@ -103,16 +103,29 @@ func Checkout(
 			),
 		)
 	}
-	treeHash, err := treeHashFromBranch(pathToBranch, objPath, formatter, reader)
+	treeHash, err := treeHashFromBranch(
+		pathToBranch,
+		objPath,
+		formatter, reader)
 	if err != nil {
 		return err
 	}
-	err = checkoutRecursively(treeHash, "", reader, objPath, formatter)
+	err = checkoutRecursively(
+		treeHash,
+		"",
+		reader,
+		objPath,
+		formatter,
+	)
 	if err != nil {
 		return err
 	}
 	head := repository.HeadPath(gitRepoPath)
-	f, err := os.OpenFile(head, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	f, err := os.OpenFile(
+		head,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+		0755,
+	)
 	if err != nil {
 		return err
 	}
@@ -164,7 +177,11 @@ func checkoutRecursively(
 				if err != nil {
 					return err
 				}
-				err = os.WriteFile(rootPath+treeEntry.path, []byte(gitObj.Content), 0755)
+				err = os.WriteFile(
+					rootPath+treeEntry.path,
+					[]byte(gitObj.Content),
+					0755,
+				)
 				if err != nil {
 					return err
 				}
@@ -242,7 +259,12 @@ func UpdateRef(
 	reader repository.FileReader, //reader to read a hash
 	formatter repository.GitFileFormatter,
 ) error {
-	objType, err := repository.TypeByHash(objPath, hash, reader, formatter)
+	objType, err := repository.TypeByHash(
+		objPath,
+		hash,
+		reader,
+		formatter,
+	)
 	if err != nil {
 		return err
 	}
@@ -269,7 +291,12 @@ func CommitTree(
 	fileFormatter repository.GitFileFormatter,
 	reader repository.FileReader,
 ) (*repository.SerializedGitObject, error) {
-	tp, err := repository.TypeByHash(path, commit.treeHash, reader, fileFormatter)
+	tp, err := repository.TypeByHash(
+		path,
+		commit.treeHash,
+		reader,
+		fileFormatter,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +310,12 @@ func CommitTree(
 			)
 	}
 	if len(commit.parentHash) != 0 {
-		tp, err := repository.TypeByHash(path, commit.parentHash, reader, fileFormatter)
+		tp, err := repository.TypeByHash(
+			path,
+			commit.parentHash,
+			reader,
+			fileFormatter,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -340,7 +372,10 @@ func GitCat(
 }
 
 //Adds a new entry into an index file
-func UpdateIndex(index repository.IndexEntry, indexPath string) error {
+func UpdateIndex(
+	index repository.IndexEntry,
+	indexPath string,
+) error {
 	f, err := os.OpenFile(
 		indexPath,
 		os.O_CREATE|os.O_RDWR,
@@ -453,7 +488,12 @@ func createTreeEntry(
 		}
 	}
 	for key, elements := range nextLevels {
-		tree, err := createTreeEntry(level+1, elements, fileFormatter, objPath)
+		tree, err := createTreeEntry(
+			level+1,
+			elements,
+			fileFormatter,
+			objPath,
+		)
 		if err != nil {
 			return nil, err
 		}

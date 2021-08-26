@@ -218,7 +218,6 @@ func Branch(gitRepoPath string) (string, error) {
 	return branch, nil
 }
 
-//TODO:rewrite files content according to tree object of a given branch
 func Checkout(
 	gitRepoPath string,
 	branchName string,
@@ -240,8 +239,7 @@ func Checkout(
 	if err != nil {
 		return err
 	}
-	//TODO: test if it works
-	err = checkoutRecursively(treeHash, "", reader, objPath)
+	err = checkoutRecursively(treeHash, "", reader, objPath, formatter)
 	if err != nil {
 		return err
 	}
@@ -260,14 +258,16 @@ func checkoutRecursively(
 	rootPath string,
 	reader repository.FileReader,
 	objPath string,
+	formatter repository.GitFileFormatter,
 ) error {
 	//queue of inner trees
 	queue := []checkoutTuple{}
-	content, err := reader(treeHash.Path(objPath))
+	rawContent, err := reader(treeHash.Path(objPath))
 	if err != nil {
 		return err
 	}
-	lines := strings.Split(string(content), "\n")
+	deser, err := formatter.Deserialize(rawContent)
+	lines := strings.Split(string(deser.Content), "\n")
 	for _, line := range lines {
 		treeEntry, err := newTreeEntry(line)
 		if err != nil {
@@ -300,6 +300,7 @@ func checkoutRecursively(
 			rootPath+tuple.path+"/",
 			reader,
 			objPath,
+			formatter,
 		)
 		if err != nil {
 			return err
@@ -610,19 +611,27 @@ func treeHashFromBranch(
 	fileFormatter repository.GitFileFormatter,
 	reader repository.FileReader,
 ) (repository.Hash, error) {
-	content, err := reader(pathToBranch)
+	rawContent, err := reader(pathToBranch)
 	if err != nil {
 		return "", err
 	}
-	commitHash, err := repository.NewHash(string(content))
+	deser, err := fileFormatter.Deserialize(rawContent)
 	if err != nil {
 		return "", err
 	}
-	content, err = reader(commitHash.Path(objPath))
+	commitHash, err := repository.NewHash(deser.Content)
 	if err != nil {
 		return "", err
 	}
-	treeParts := strings.Split(string(content), "\n")[0]
+	rawContent, err = reader(commitHash.Path(objPath))
+	if err != nil {
+		return "", err
+	}
+	deser, err = fileFormatter.Deserialize(rawContent)
+	if err != nil {
+		return "", err
+	}
+	treeParts := strings.Split(string(deser.Content), "\n")[0]
 	treeHash, err := repository.NewHash(strings.Split(treeParts, " ")[1])
 	if err != nil {
 		return "", err

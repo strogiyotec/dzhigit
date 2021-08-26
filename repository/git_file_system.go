@@ -59,7 +59,7 @@ func Init(path string, userJson []byte) error {
 	if !Exists(path) {
 		return initRepo(path, userJson)
 	} else {
-		return errors.New("Dzhigit repository already exists")
+		return errors.New("dzhigit repository already exists")
 	}
 }
 

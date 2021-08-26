@@ -27,7 +27,11 @@ func TestNewUser(t *testing.T) {
 }
 
 func TestWriteTree(t *testing.T) {
-	dir, err := fakes.TempDir()
+	user,err :=DefaultGitUserAsJson()
+	if err !=nil{
+		t.Fatal(err)
+	}
+	dir, err := fakes.TempDir(user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,21 +96,23 @@ func Test_createCommitTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	user := &User{
+		Name:  "Almas",
+		Email: "almas337519@gmail.com",
+	}
+	time := &Time{
+		zone:        "PDT",
+		unixSeconds: time.Now().Unix(),
+	}
 	commit := Commit{
 		treeHash:   repository.Hash(treeHash),
 		message:    "New Commit",
 		parentHash: repository.Hash(parentHash),
-	}
-	user := User{
-		Name:  "Almas",
-		Email: "almas337519@gmail.com",
-	}
-	time := Time{
-		zone:        "PDT",
-		unixSeconds: time.Now().Unix(),
+		user:       user,
+		time:       time,
 	}
 	formatter := repository.DefaultGitFileFormatter{}
-	commitObj, err := createCommitObject(commit, user, time, &formatter)
+	commitObj, err := createCommitObject(commit, &formatter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,3 +124,4 @@ func Test_createCommitTree(t *testing.T) {
 		t.Fatalf(fmt.Sprintf("Wrong object type, 'commit expected', got %s", deser.ObjType))
 	}
 }
+

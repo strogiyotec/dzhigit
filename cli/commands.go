@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/strogiyotec/dzhigit/repository"
 	"github.com/tcnksm/go-gitconfig"
 )
@@ -43,10 +45,144 @@ type Commit struct {
 	treeHash   repository.Hash //hash of a tree object
 	message    string
 	parentHash repository.Hash //hash of a parent commit may be null
+	user       *User
+	time       *Time
+}
+
+func (c *Commit) HasParent() bool {
+	return len(c.parentHash) != 0
+}
+
+func (u *User) String() string {
+	return fmt.Sprintf("%s %s", u.Name, u.Email)
+}
+
+func (t *Time) String() string {
+	commitTime := time.Unix(t.unixSeconds, 0)
+	return commitTime.Format(time.RFC3339)
+}
+
+func Log(
+	writer *tablewriter.Table,
+	gitRepoPath string,
+	formatter repository.GitFileFormatter,
+	reader repository.FileReader,
+) error {
+	headPath := repository.HeadPath(gitRepoPath)
+	content, err := os.ReadFile(headPath)
+	if err != nil {
+		return errors.New(
+			`There is no branch in this repo,
+            to create one use 'dzhigit update-ref'
+            and then check it out using 'dzhigit checkout' `,
+		)
+	}
+	branch := branchNameFromHead(string(content))
+	headsPath := repository.HeadsPath(gitRepoPath)
+	pathToBranch := headsPath + branch
+	if !repository.Exists(pathToBranch) {
+		return errors.New(
+			fmt.Sprintf(
+				"error branch with name '%s' doesn't exist",
+				branch,
+			),
+		)
+	}
+	commitHashContent, err := reader(pathToBranch)
+	if err != nil {
+		return err
+	}
+	commitHash, err := repository.NewHash(string(commitHashContent))
+	if err != nil {
+		return err
+	}
+	objPath := repository.ObjPath(gitRepoPath)
+	return appendLog(
+		writer,
+		commitHash,
+		objPath,
+		formatter,
+		reader,
+	)
+}
+
+func appendLog(
+	writer *tablewriter.Table,
+	commitHash repository.Hash,
+	objPath string,
+	formatter repository.GitFileFormatter,
+	reader repository.FileReader,
+) error {
+	rawContent, err := reader(commitHash.Path(objPath))
+	if err != nil {
+		return err
+	}
+	deser, err := formatter.Deserialize(rawContent)
+	if err != nil {
+		return err
+	}
+	commit, err := parseCommit(deser.Content)
+	if err != nil {
+		return err
+	}
+	writer.Append(
+		[]string{
+			string(commit.treeHash)[0:5],
+			commit.message,
+			commit.user.String(),
+			commit.time.String(),
+		},
+	)
+	if commit.HasParent() {
+		return appendLog(
+			writer,
+			commit.parentHash,
+			objPath,
+			formatter,
+			reader,
+		)
+	}
+	return nil
+}
+
+func parseCommit(content string) (*Commit, error) {
+	parts := strings.Split(content, "\n")
+	commit := &Commit{}
+	treeHash, err := repository.NewHash(strings.Fields(parts[0])[1])
+	if err != nil {
+		return nil, err
+	}
+	commit.treeHash = treeHash
+	nextIndex := 1
+	if strings.Contains(parts[1], "parent") {
+		parentHash, err := repository.NewHash(strings.Fields(parts[1])[1])
+		if err != nil {
+			return nil, err
+		}
+		commit.parentHash = parentHash
+		nextIndex++
+	}
+	authorParts := strings.Fields(parts[nextIndex])
+	commit.user = &User{
+		Name:  authorParts[1],
+		Email: authorParts[2],
+	}
+	timeUnix, err := strconv.ParseInt(authorParts[3], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	commit.time = &Time{
+		unixSeconds: timeUnix,
+		zone:        authorParts[4],
+	}
+	//skip committer and empty line
+	nextIndex += 2
+	commit.message = strings.Join(parts[nextIndex:], "\n")
+	return commit, nil
 }
 
 func newTreeEntry(line string) (*treeEntry, error) {
-	parts := strings.Fields(line)
+	parts := strings.Split(line, "\\s+")
 	mode, err := repository.AsMode(parts[0])
 	if err != nil {
 		return nil, err
@@ -82,10 +218,7 @@ func Branch(gitRepoPath string) (string, error) {
 	return branch, nil
 }
 
-//TODO: get current branch(not the one we want to checkout)
-// get the tree , get the files from this tree
-//if file we want to checkout is not the same as in the current branch's tree
-//then throw an error(it can be happen if unstaged changes exist in file)
+//TODO:rewrite files content according to tree object of a given branch
 func Checkout(
 	gitRepoPath string,
 	branchName string,
@@ -103,29 +236,17 @@ func Checkout(
 			),
 		)
 	}
-	treeHash, err := treeHashFromBranch(
-		pathToBranch,
-		objPath,
-		formatter, reader)
+	treeHash, err := treeHashFromBranch(pathToBranch, objPath, formatter, reader)
 	if err != nil {
 		return err
 	}
-	err = checkoutRecursively(
-		treeHash,
-		"",
-		reader,
-		objPath,
-		formatter,
-	)
+	//TODO: test if it works
+	err = checkoutRecursively(treeHash, "", reader, objPath)
 	if err != nil {
 		return err
 	}
 	head := repository.HeadPath(gitRepoPath)
-	f, err := os.OpenFile(
-		head,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		0755,
-	)
+	f, err := os.OpenFile(head, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
@@ -139,52 +260,37 @@ func checkoutRecursively(
 	rootPath string,
 	reader repository.FileReader,
 	objPath string,
-	formatter repository.GitFileFormatter,
 ) error {
 	//queue of inner trees
-	var queue []checkoutTuple
-	rawContent, err := reader(treeHash.Path(objPath))
+	queue := []checkoutTuple{}
+	content, err := reader(treeHash.Path(objPath))
 	if err != nil {
 		return err
 	}
-	treeObj, err := formatter.Deserialize(rawContent)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(treeObj.Content, "\n")
+	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
-		if line != "" {
-			treeEntry, err := newTreeEntry(line)
+		treeEntry, err := newTreeEntry(line)
+		if err != nil {
+			return err
+		}
+		//if tree then store in queue and proceed later
+		if treeEntry.objType == repository.TREE {
+			queue = append(
+				queue,
+				checkoutTuple{
+					treeHash: treeEntry.hash,
+					path:     treeEntry.path,
+				},
+			)
+		} else {
+			//else override content right away
+			data, err := reader(treeEntry.hash.Path(objPath))
 			if err != nil {
 				return err
 			}
-			//if tree then store in queue and proceed later
-			if treeEntry.objType == repository.TREE {
-				queue = append(
-					queue,
-					checkoutTuple{
-						treeHash: treeEntry.hash,
-						path:     treeEntry.path,
-					},
-				)
-			} else {
-				//else override content right away
-				rawData, err := reader(treeEntry.hash.Path(objPath))
-				if err != nil {
-					return err
-				}
-				gitObj, err := formatter.Deserialize(rawData)
-				if err != nil {
-					return err
-				}
-				err = os.WriteFile(
-					rootPath+treeEntry.path,
-					[]byte(gitObj.Content),
-					0755,
-				)
-				if err != nil {
-					return err
-				}
+			err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -194,7 +300,6 @@ func checkoutRecursively(
 			rootPath+tuple.path+"/",
 			reader,
 			objPath,
-			formatter,
 		)
 		if err != nil {
 			return err
@@ -207,11 +312,15 @@ func NewCommit(
 	hash repository.Hash,
 	message string,
 	parent repository.Hash,
+	user *User,
+	time *Time,
 ) *Commit {
 	return &Commit{
 		treeHash:   hash,
 		message:    message,
 		parentHash: parent,
+		user:       user,
+		time:       time,
 	}
 }
 
@@ -259,12 +368,7 @@ func UpdateRef(
 	reader repository.FileReader, //reader to read a hash
 	formatter repository.GitFileFormatter,
 ) error {
-	objType, err := repository.TypeByHash(
-		objPath,
-		hash,
-		reader,
-		formatter,
-	)
+	objType, err := repository.TypeByHash(objPath, hash, reader, formatter)
 	if err != nil {
 		return err
 	}
@@ -285,18 +389,11 @@ func UpdateRef(
 //an actual commit creation to #createCommitTree
 func CommitTree(
 	commit Commit,
-	time Time,
 	path string,
-	user User,
 	fileFormatter repository.GitFileFormatter,
 	reader repository.FileReader,
 ) (*repository.SerializedGitObject, error) {
-	tp, err := repository.TypeByHash(
-		path,
-		commit.treeHash,
-		reader,
-		fileFormatter,
-	)
+	tp, err := repository.TypeByHash(path, commit.treeHash, reader, fileFormatter)
 	if err != nil {
 		return nil, err
 	}
@@ -309,13 +406,8 @@ func CommitTree(
 				),
 			)
 	}
-	if len(commit.parentHash) != 0 {
-		tp, err := repository.TypeByHash(
-			path,
-			commit.parentHash,
-			reader,
-			fileFormatter,
-		)
+	if commit.HasParent() {
+		tp, err := repository.TypeByHash(path, commit.parentHash, reader, fileFormatter)
 		if err != nil {
 			return nil, err
 		}
@@ -331,8 +423,6 @@ func CommitTree(
 	}
 	return createCommitObject(
 		commit,
-		user,
-		time,
 		fileFormatter,
 	)
 }
@@ -372,10 +462,7 @@ func GitCat(
 }
 
 //Adds a new entry into an index file
-func UpdateIndex(
-	index repository.IndexEntry,
-	indexPath string,
-) error {
+func UpdateIndex(index repository.IndexEntry, indexPath string) error {
 	f, err := os.OpenFile(
 		indexPath,
 		os.O_CREATE|os.O_RDWR,
@@ -426,31 +513,29 @@ func UpdateIndex(
 // +----------------------------+
 func createCommitObject(
 	commit Commit,
-	user User,
-	time Time,
 	formatter repository.GitFileFormatter,
 ) (*repository.SerializedGitObject, error) {
 	builder := strings.Builder{}
 	builder.WriteString(fmt.Sprintf("tree %s\n", commit.treeHash))
-	if len(commit.parentHash) != 0 {
+	if commit.HasParent() {
 		builder.WriteString(fmt.Sprintf("parent %s\n", commit.parentHash))
 	}
 	builder.WriteString(
 		fmt.Sprintf(
 			"author %s <%s> %d %s\n",
-			user.Name,
-			user.Email,
-			time.unixSeconds,
-			time.zone,
+			commit.user.Name,
+			commit.user.Email,
+			commit.time.unixSeconds,
+			commit.time.zone,
 		),
 	)
 	builder.WriteString(
 		fmt.Sprintf(
 			"comitter %s <%s> %d %s\n",
-			user.Name,
-			user.Email,
-			time.unixSeconds,
-			time.zone,
+			commit.user.Name,
+			commit.user.Email,
+			commit.time.unixSeconds,
+			commit.time.zone,
 		),
 	)
 	builder.WriteString("\n")
@@ -488,12 +573,7 @@ func createTreeEntry(
 		}
 	}
 	for key, elements := range nextLevels {
-		tree, err := createTreeEntry(
-			level+1,
-			elements,
-			fileFormatter,
-			objPath,
-		)
+		tree, err := createTreeEntry(level+1, elements, fileFormatter, objPath)
 		if err != nil {
 			return nil, err
 		}
@@ -542,11 +622,7 @@ func treeHashFromBranch(
 	if err != nil {
 		return "", err
 	}
-	commitContent, err := fileFormatter.Deserialize(content)
-	if err != nil {
-		return "", err
-	}
-	treeParts := strings.Split(commitContent.Content, "\n")[0]
+	treeParts := strings.Split(string(content), "\n")[0]
 	treeHash, err := repository.NewHash(strings.Split(treeParts, " ")[1])
 	if err != nil {
 		return "", err

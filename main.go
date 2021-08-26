@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/olekukonko/tablewriter"
 	"github.com/strogiyotec/dzhigit/cli"
 	"github.com/strogiyotec/dzhigit/repository"
 )
@@ -206,14 +207,14 @@ func main() {
 				treeHash,
 				cli.Git.CommitTree.Message,
 				parentHash,
+				user,
+				time,
 			)
 			repo := &repository.DefaultGitFileFormatter{}
 			objPath := repository.ObjPath(gitRepoPath)
 			ser, err := cli.CommitTree(
 				*commit,
-				*time,
 				objPath,
-				*user,
 				repo,
 				repository.Reader,
 			)
@@ -301,6 +302,28 @@ func main() {
 				return
 			}
 			fmt.Printf("* %s\n", branch)
+		}
+	case "log":
+		{
+			gitRepoPath := repository.DefaultPath()
+			if !repository.Exists(gitRepoPath) {
+				fmt.Println("Dzhigit repository doesn't exist")
+				return
+			}
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader([]string{"commit hash", "commit message", "author", "time"})
+			table.SetRowLine(true)
+			err := cli.Log(
+				table,
+				gitRepoPath,
+				&repository.DefaultGitFileFormatter{},
+				repository.Reader,
+			)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			table.Render()
 		}
 	default:
 		fmt.Println("Default")

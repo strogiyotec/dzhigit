@@ -37,4 +37,6 @@ var Git struct {
 	} `cmd help:"Checkout a given branch"`
 	Branch struct {
 	} `cmd help:"Print current branch"`
+	Log struct {
+	} `cmd help:"Print the list of commits with messages"`
 }

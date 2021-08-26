@@ -8,12 +8,11 @@ I am using git in a daily basics but know nothing about the internal data struct
 1. [X] cat-file
 2. [o] checkout
     1. [X] Change branch
-    2. [X] Change files content
-    3. [ ] Add security check
+    2. [ ] Change files content
 3. [X] commit-tree
 4. [X] hash-object 
 5. [X] init 
-6. [ ] log - just print all commits with messages starting from head
+6. [ ] log 
 7. [X] ls-tree 
 8. [ ] merge - To consider
 9. [ ] rm 

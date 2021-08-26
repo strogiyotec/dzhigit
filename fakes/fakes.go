@@ -25,13 +25,13 @@ func FakeIndexEntries(entries []repository.SerializedGitObject, files []os.File,
 	return indexEntries, nil
 }
 
-func TempDir() (string, error) {
+func TempDir(user []byte) (string, error) {
 	dir := "/tmp/dzhigit"
 	err := os.MkdirAll(dir, 0777)
 	if err != nil {
 		return "", err
 	}
-	err = repository.Init(dir + "/.dzhigit")
+	err = repository.Init(dir + "/.dzhigit",user)
 	if err != nil {
 		return "", err
 	}
@@ -56,7 +56,7 @@ func FakeEntries(formatter repository.DefaultGitFileFormatter) ([]repository.Ser
 }
 
 func FakeFiles(dir string, amount int) ([]os.File, error) {
-	files := []os.File{}
+	var files []os.File
 	for i := 0; i < amount; i++ {
 		file, err := ioutil.TempFile(dir, "blob")
 		if err != nil {

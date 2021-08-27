@@ -288,15 +288,14 @@ func checkoutRecursively(
 				)
 			} else {
 				//else override content right away
-				/*			data, err := reader(treeEntry.hash.Path(objPath))
-							if err != nil {
-								return err
-							}
-							err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
-							if err != nil {
-								return err
-							}
-				*/
+				data, err := reader(treeEntry.hash.Path(objPath))
+				if err != nil {
+					return err
+				}
+				err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -182,7 +182,7 @@ func parseCommit(content string) (*Commit, error) {
 }
 
 func newTreeEntry(line string) (*treeEntry, error) {
-	parts := strings.Split(line, "\\s+")
+	parts := strings.Fields(line)
 	mode, err := repository.AsMode(parts[0])
 	if err != nil {
 		return nil, err
@@ -261,36 +261,42 @@ func checkoutRecursively(
 	formatter repository.GitFileFormatter,
 ) error {
 	//queue of inner trees
-	queue := []checkoutTuple{}
+	var queue []checkoutTuple
 	rawContent, err := reader(treeHash.Path(objPath))
 	if err != nil {
 		return err
 	}
 	deser, err := formatter.Deserialize(rawContent)
-	lines := strings.Split(string(deser.Content), "\n")
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(deser.Content, "\n")
 	for _, line := range lines {
-		treeEntry, err := newTreeEntry(line)
-		if err != nil {
-			return err
-		}
-		//if tree then store in queue and proceed later
-		if treeEntry.objType == repository.TREE {
-			queue = append(
-				queue,
-				checkoutTuple{
-					treeHash: treeEntry.hash,
-					path:     treeEntry.path,
-				},
-			)
-		} else {
-			//else override content right away
-			data, err := reader(treeEntry.hash.Path(objPath))
+		if len(line) != 0 {
+			treeEntry, err := newTreeEntry(line)
 			if err != nil {
 				return err
 			}
-			err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
-			if err != nil {
-				return err
+			//if tree then store in queue and proceed later
+			if treeEntry.objType == repository.TREE {
+				queue = append(
+					queue,
+					checkoutTuple{
+						treeHash: treeEntry.hash,
+						path:     treeEntry.path,
+					},
+				)
+			} else {
+				//else override content right away
+				/*			data, err := reader(treeEntry.hash.Path(objPath))
+							if err != nil {
+								return err
+							}
+							err = os.WriteFile(rootPath+treeEntry.path, data, 0755)
+							if err != nil {
+								return err
+							}
+				*/
 			}
 		}
 	}
@@ -417,7 +423,7 @@ func CommitTree(
 				errors.New(
 					fmt.Sprintf(
 						"Given hash %s is not a commit object",
-						commit.treeHash,
+						commit.parentHash,
 					),
 				)
 		}
@@ -611,7 +617,15 @@ func treeHashFromBranch(
 	fileFormatter repository.GitFileFormatter,
 	reader repository.FileReader,
 ) (repository.Hash, error) {
-	rawContent, err := reader(pathToBranch)
+	content, err := reader(pathToBranch)
+	if err != nil {
+		return "", err
+	}
+	commitHash, err := repository.NewHash(string(content))
+	if err != nil {
+		return "", err
+	}
+	rawContent, err := reader(commitHash.Path(objPath))
 	if err != nil {
 		return "", err
 	}
@@ -619,19 +633,7 @@ func treeHashFromBranch(
 	if err != nil {
 		return "", err
 	}
-	commitHash, err := repository.NewHash(deser.Content)
-	if err != nil {
-		return "", err
-	}
-	rawContent, err = reader(commitHash.Path(objPath))
-	if err != nil {
-		return "", err
-	}
-	deser, err = fileFormatter.Deserialize(rawContent)
-	if err != nil {
-		return "", err
-	}
-	treeParts := strings.Split(string(deser.Content), "\n")[0]
+	treeParts := strings.Split(deser.Content, "\n")[0]
 	treeHash, err := repository.NewHash(strings.Split(treeParts, " ")[1])
 	if err != nil {
 		return "", err

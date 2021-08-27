@@ -24,6 +24,7 @@ const (
 
 //reader to read a file content by path
 //use first class function to improve testability
+//TODO: introduce another reader that reads path as deserialized object
 type FileReader func(path string) ([]byte, error)
 
 //default reader

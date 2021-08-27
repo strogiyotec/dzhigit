@@ -12,7 +12,7 @@ I am using git in a daily basics but know nothing about the internal data struct
 3. [X] commit-tree
 4. [X] hash-object 
 5. [X] init 
-6. [ ] log 
+6. [X] log 
 7. [X] ls-tree 
 8. [ ] merge - To consider
 9. [ ] rm 
@@ -47,6 +47,8 @@ Where
 5. **F_name** - file's name
 
 ## Working On
+1. [ ] Let's introduce new reader that reads data from path as deserialized git object
+2. [ ] Need to add test cases for parsers
 
 
 ## Resources

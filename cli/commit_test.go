@@ -65,12 +65,50 @@ func Test_parseCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commitContent := fmt.Sprintf(`
-            tree %s\n
-            author strogiyotec <almas337519@gmail.com> 1630023095 PDT
-            comitter strogiyotec <almas337519@gmail.com> 1630023095 PDT
+	treeHash, err := repository.NewHash(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commitContent := fmt.Sprintf(
+		`tree %s
+		 parent %s
+         author strogiyotec <almas337519@gmail.com> 1630023095 PDT
+         comitter strogiyotec <almas337519@gmail.com> 1630023095 PDT
 
-            Message
-    `, hash)
-	t.Log(commitContent)
+Message`,
+		treeHash, treeHash)
+	commit, err := parseCommit(commitContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commit.treeHash != treeHash {
+		t.Fatalf(
+			"Wrong tree hash, '%s' expected,got '%s'",
+			treeHash,
+			commit.treeHash,
+		)
+	}
+	if commit.message != "Message" {
+		t.Fatalf(
+			"Wrong commit message, 'Message' expected,got '%s'",
+			treeHash,
+		)
+	}
+	if commit.user.Name != "strogiyotec" {
+
+		t.Fatalf(
+			"Wrong author name, 'strogiyotec' expected,got '%s'",
+			commit.user.Name,
+		)
+	}
+}
+
+func TestUser_String(t *testing.T) {
+	user := User{
+		Name:  "strogiyotec",
+		Email: "almas337519@gmail.com",
+	}
+	if user.String() != "strogiyotec almas337519@gmail.com" {
+		t.Fatal("Wrong user's string representation")
+	}
 }

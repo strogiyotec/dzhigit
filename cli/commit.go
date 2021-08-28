@@ -81,6 +81,7 @@ func (u *User) String() string {
 
 func (t *Time) String() string {
 	commitTime := time.Unix(t.unixSeconds, 0)
+	//TODO: it doesn't use timezone yet
 	return commitTime.Format(time.RFC3339)
 }
 
@@ -208,7 +209,7 @@ func parseCommit(content string) (*Commit, error) {
 		zone:        authorParts[4],
 	}
 	//skip committer and empty line
-	nextIndex += 2
+	nextIndex += 3
 	commit.message = strings.Join(parts[nextIndex:], "\n")
 	return commit, nil
 }

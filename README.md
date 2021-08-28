@@ -47,8 +47,10 @@ Where
 5. **F_name** - file's name
 
 ## Working On
-1. [ ] Let's introduce new reader that reads data from path as deserialized git object
-2. [ ] Need to add test cases for parsers
+1. [X] Let's introduce new reader that reads data from path as deserialized git object
+2. [X] Need to add test cases for parsers
+3. [ ] Let's split logic from commands.go file into multiple files, each responsible for single command
+4. [ ] String() for time doesn't use timezone yet
 
 
 ## Resources

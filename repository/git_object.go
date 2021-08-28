@@ -22,15 +22,30 @@ const (
 	COMMIT               = "commit"
 )
 
-//reader to read a file content by path
-//use first class function to improve testability
-//TODO: introduce another reader that reads path as deserialized object
-type FileReader func(path string) ([]byte, error)
+type (
+	ObjectReader func(
+		path string,
+		formatter GitFileFormatter,
+	) (*DeserializedGitObject, error)
 
-//default reader
-var Reader FileReader = func(path string) ([]byte, error) {
-	return ioutil.ReadFile(path)
-}
+	FileReader func(path string) ([]byte, error)
+)
+
+var (
+	//reader to read a raw content from given path
+	Reader FileReader = func(path string) ([]byte, error) {
+		return ioutil.ReadFile(path)
+	}
+
+	//reader to read raw content as git obj
+	ObjReader ObjectReader = func(path string, formatter GitFileFormatter) (*DeserializedGitObject, error) {
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return formatter.Deserialize(content)
+	}
+)
 
 type GitFileFormatter interface {
 	Serialize(data []byte, objType GitObjectType) (*SerializedGitObject, error)

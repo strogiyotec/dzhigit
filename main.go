@@ -281,6 +281,7 @@ func main() {
 				options.Branch,
 				objPath,
 				repository.Reader,
+				repository.ObjReader,
 				&repository.DefaultGitFileFormatter{},
 			)
 			if err != nil {
@@ -296,7 +297,7 @@ func main() {
 				fmt.Println("Dzhigit repository doesn't exist")
 				return
 			}
-			branch, err := cli.Branch(gitRepoPath)
+			branch, err := cli.Branch(gitRepoPath, repository.Reader)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -318,6 +319,7 @@ func main() {
 				gitRepoPath,
 				&repository.DefaultGitFileFormatter{},
 				repository.Reader,
+				repository.ObjReader,
 			)
 			if err != nil {
 				fmt.Println(err.Error())

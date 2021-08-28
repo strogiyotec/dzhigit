@@ -71,3 +71,15 @@ func TestWriteTree(t *testing.T) {
 	}
 
 }
+
+func Test_branchNameFromHead(t *testing.T) {
+	branchLine := "refs: refs/heads/master"
+	branchName := branchNameFromHead(branchLine)
+	if branchName != "master" {
+		t.Fatalf(
+			"Wrong branch name , '%s' expected, got '%s'",
+			"master",
+			branchName,
+		)
+	}
+}

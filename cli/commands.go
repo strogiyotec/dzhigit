@@ -32,9 +32,10 @@ func Log(
 	gitRepoPath string,
 	formatter repository.GitFileFormatter,
 	reader repository.FileReader,
+	objReader repository.ObjectReader,
 ) error {
 	headPath := repository.HeadPath(gitRepoPath)
-	content, err := os.ReadFile(headPath)
+	content, err := reader(headPath)
 	if err != nil {
 		return errors.New(
 			`There is no branch in this repo,
@@ -66,8 +67,8 @@ func Log(
 		writer,
 		commitHash,
 		objPath,
+		objReader,
 		formatter,
-		reader,
 	)
 }
 
@@ -75,18 +76,14 @@ func appendLog(
 	writer *tablewriter.Table,
 	commitHash repository.Hash,
 	objPath string,
+	objReader repository.ObjectReader,
 	formatter repository.GitFileFormatter,
-	reader repository.FileReader,
 ) error {
-	rawContent, err := reader(commitHash.Path(objPath))
+	commitContent, err := objReader(commitHash.Path(objPath), formatter)
 	if err != nil {
 		return err
 	}
-	deser, err := formatter.Deserialize(rawContent)
-	if err != nil {
-		return err
-	}
-	commit, err := parseCommit(deser.Content)
+	commit, err := parseCommit(commitContent.Content)
 	if err != nil {
 		return err
 	}
@@ -103,8 +100,8 @@ func appendLog(
 			writer,
 			commit.parentHash,
 			objPath,
+			objReader,
 			formatter,
-			reader,
 		)
 	}
 	return nil
@@ -133,9 +130,12 @@ func newTreeEntry(line string) (*treeEntry, error) {
 	}, nil
 }
 
-func Branch(gitRepoPath string) (string, error) {
+func Branch(
+	gitRepoPath string,
+	reader repository.FileReader,
+) (string, error) {
 	headPath := repository.HeadPath(gitRepoPath)
-	content, err := os.ReadFile(headPath)
+	content, err := reader(headPath)
 	if err != nil {
 		return "", errors.New(
 			`There is no branch in this repo,
@@ -152,6 +152,7 @@ func Checkout(
 	branchName string,
 	objPath string,
 	reader repository.FileReader,
+	objReader repository.ObjectReader,
 	formatter repository.GitFileFormatter,
 ) error {
 	headsPath := repository.HeadsPath(gitRepoPath)
@@ -164,11 +165,24 @@ func Checkout(
 			),
 		)
 	}
-	treeHash, err := treeHashFromBranch(pathToBranch, objPath, formatter, reader)
+	treeHash, err := treeHashFromBranch(
+		pathToBranch,
+		objPath,
+		formatter,
+		reader,
+		objReader,
+	)
 	if err != nil {
 		return err
 	}
-	err = checkoutRecursively(treeHash, "", reader, objPath, formatter)
+	err = checkoutRecursively(
+		treeHash,
+		"",
+		reader,
+		objReader,
+		objPath,
+		formatter,
+	)
 	if err != nil {
 		return err
 	}
@@ -186,16 +200,13 @@ func checkoutRecursively(
 	treeHash repository.Hash,
 	rootPath string,
 	reader repository.FileReader,
+	objReader repository.ObjectReader,
 	objPath string,
 	formatter repository.GitFileFormatter,
 ) error {
 	//queue of inner trees
 	var queue []checkoutTuple
-	rawContent, err := reader(treeHash.Path(objPath))
-	if err != nil {
-		return err
-	}
-	deser, err := formatter.Deserialize(rawContent)
+	deser, err := objReader(treeHash.Path(objPath), formatter)
 	if err != nil {
 		return err
 	}
@@ -233,6 +244,7 @@ func checkoutRecursively(
 			tuple.treeHash,
 			rootPath+tuple.path+"/",
 			reader,
+			objReader,
 			objPath,
 			formatter,
 		)
@@ -401,26 +413,22 @@ func branchNameFromHead(head string) string {
 	return parts[len(parts)-1]
 }
 
-//TODO: introduce branch type ?
 func treeHashFromBranch(
 	pathToBranch string,
 	objPath string,
-	fileFormatter repository.GitFileFormatter,
+	formatter repository.GitFileFormatter,
 	reader repository.FileReader,
+	objReader repository.ObjectReader,
 ) (repository.Hash, error) {
-	content, err := reader(pathToBranch)
+	branchContent, err := reader(pathToBranch)
 	if err != nil {
 		return "", err
 	}
-	commitHash, err := repository.NewHash(string(content))
+	commitHash, err := repository.NewHash(string(branchContent))
 	if err != nil {
 		return "", err
 	}
-	rawContent, err := reader(commitHash.Path(objPath))
-	if err != nil {
-		return "", err
-	}
-	deser, err := fileFormatter.Deserialize(rawContent)
+	deser, err := objReader(commitHash.Path(objPath), formatter)
 	if err != nil {
 		return "", err
 	}

@@ -8,18 +8,26 @@ I am using git in a daily basics but know nothing about the internal data struct
 1. [X] cat-file
 2. [o] checkout
     1. [X] Change branch
-    2. [ ] Change files content
+    2. [X] Change files content
+    3. [ ] Secure unchanged files
 3. [X] commit-tree
 4. [X] hash-object 
 5. [X] init 
-6. [X] log 
+6. [o] log
+    1. [X] Regular log of commits
+    2. [ ] Patch - show diff of each commit
 7. [X] ls-tree 
 8. [ ] merge - To consider
 9. [ ] rm 
-10. [ ] tag
-11. [X] index
-12. [X] write-tree
-13. [X] update-ref
+10. [X] index
+11. [X] write-tree
+12. [X] update-ref
+13. [ ] Diff
+
+## Dependencies
+1. Kong - cli parser
+2. Tablewriter - table output
+3. Git Config - to get your git user
     
 ## How it works
 ### Blobs
